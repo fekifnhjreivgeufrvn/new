@@ -4,4 +4,4 @@ compatibility_date = "2024-11-01"
 
 [[kv_namespaces]]
 binding = "LEADERBOARD"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "09b9ed41c9ab4e88bacdea444b0f7e26"
