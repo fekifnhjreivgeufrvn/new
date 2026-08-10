@@ -48,6 +48,8 @@ const HTML_PAGE = `<!DOCTYPE html>
     --tier-epic: #a855f7;
     --tier-legendary: #f59e0b;
     --tier-mythic: #f43f5e;
+    --tier-divine: #ec4899;
+    --tier-cosmic: #8b5cf6;
     color-scheme: light;
   }
   html[data-theme="dark"] {
@@ -74,7 +76,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   html[data-theme="dark"] .result-card { background: #13131f; border-color: #262638; }
   html[data-theme="dark"] .site-header { background: rgba(10,10,18,.96); border-color: #262638; }
   html[data-theme="dark"] .name-field { border-color: #34344c; }
-  html[data-theme="dark"] .badge-item, html[data-theme="dark"] .badge-slot { background: #1a1a2c; border-color: #34344c; }
+  html[data-theme="dark"] .badge-item, html[data-theme="dark"] .badge-slot { border-color: #34344c; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
@@ -132,7 +134,10 @@ const HTML_PAGE = `<!DOCTYPE html>
     animation: cardIn .5s cubic-bezier(.2,.8,.2,1) both;
   }
   @keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  .hero-tag { text-align: center; color: var(--text-2); font-size: .78rem; line-height: 1.55; margin: 0 0 18px; }
+  .hero-tag { text-align: center; color: var(--text-2); font-size: .78rem; line-height: 1.55; margin: 0 0 8px; }
+  .roll-confirmation { min-height: 34px; text-align: center; }
+  .roll-rarity { display: inline-flex; min-height: 24px; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid currentColor; border-radius: 999px; font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: 0; transition: opacity .35s ease, color .35s ease, background .35s ease; }
+  .roll-rarity.show { opacity: 1; }
 
   .name-field {
     display: flex; align-items: center; gap: 10px;
@@ -154,8 +159,7 @@ const HTML_PAGE = `<!DOCTYPE html>
     transform-style: preserve-3d;
     transition: border-color .35s ease, box-shadow .35s ease, background .35s ease;
   }
-  .tile.rolling { animation: tileSpin .65s linear infinite; color: var(--text-2); }
-  @keyframes tileSpin { 0% { transform: rotateX(0deg); } 100% { transform: rotateX(360deg); } }
+  .tile.rolling { animation: none; color: var(--text-2); }
   .tile.settled {
     animation: tileSettle .5s cubic-bezier(.34,1.56,.64,1);
     color: var(--text); border-color: transparent;
@@ -163,9 +167,9 @@ const HTML_PAGE = `<!DOCTYPE html>
   }
   @keyframes tileSettle { 0% { transform: scale(1.2) rotateX(0); } 55% { transform: scale(.92); } 100% { transform: scale(1); } }
   .tile.tile-highlight {
-    border-color: var(--tier-color, var(--accent));
-    background: color-mix(in srgb, var(--tier-color, var(--accent)) 14%, var(--surface-2));
-    animation: tileSettle .5s cubic-bezier(.34,1.56,.64,1), tilePulse 1.5s ease-in-out .5s 2;
+    border-color: transparent;
+    background: transparent;
+    animation: tileSettle .5s cubic-bezier(.34,1.56,.64,1);
   }
   @keyframes tilePulse {
     0%,100% { box-shadow: 0 0 0 1px var(--tier-color) inset, 0 0 10px -2px var(--tier-color); }
@@ -184,6 +188,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   .roll-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 0 0 2px #ff65bc, 0 12px 28px -8px rgba(255,101,188,.5); }
   .roll-btn:active:not(:disabled) { transform: translateY(0) scale(.97); }
   .roll-btn:disabled { cursor: not-allowed; background: var(--surface-2); color: var(--text-3); box-shadow: none; }
+  .roll-btn.is-rolling { cursor: wait; background: #272733; color: #8f8fa4; box-shadow: 0 0 0 2px #57576b; }
   .roll-btn .btn-shimmer { position: absolute; inset: 0; background: linear-gradient(120deg, transparent, rgba(255,255,255,.35), transparent); transform: translateX(-120%); }
   .roll-btn:not(:disabled) .btn-shimmer { animation: shimmer 2.8s ease-in-out infinite; }
   @keyframes shimmer { 0% { transform: translateX(-120%); } 60%,100% { transform: translateX(120%); } }
@@ -213,7 +218,7 @@ const HTML_PAGE = `<!DOCTYPE html>
     opacity: .28; filter: blur(14px); pointer-events: none;
   }
   .result-header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px 12px; margin-bottom: 18px; position: relative; z-index: 1; }
-  .result-total { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 6px; }
+  .result-total { display: flex; align-items: baseline; gap: 6px; }
   .result-letters { font-family: "Space Mono", monospace; font-weight: 700; font-size: 1.55rem; letter-spacing: .1em; }
   .tier-badge {
     font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
@@ -234,11 +239,22 @@ const HTML_PAGE = `<!DOCTYPE html>
     border-radius: 10px; padding: 10px 14px;
     opacity: 0; transform: translateX(-8px); animation: badgeIn .55s ease var(--badge-delay, 0ms) both;
   }
+  .badge-item.rarity-trash { background: color-mix(in srgb, var(--badge-color) 4%, var(--surface)); }
+  .badge-item.rarity-common { background: color-mix(in srgb, var(--badge-color) 8%, var(--surface)); }
+  .badge-item.rarity-uncommon { background: color-mix(in srgb, var(--badge-color) 12%, var(--surface)); }
+  .badge-item.rarity-rare { background: linear-gradient(110deg, color-mix(in srgb, var(--badge-color) 16%, var(--surface)), var(--surface)); }
+  .badge-item.rarity-epic { background: linear-gradient(110deg, color-mix(in srgb, var(--badge-color) 22%, var(--surface)), color-mix(in srgb, var(--badge-color) 5%, var(--surface))); }
+  .badge-item.rarity-legendary { background: linear-gradient(110deg, color-mix(in srgb, var(--badge-color) 28%, var(--surface)), color-mix(in srgb, var(--badge-color) 8%, var(--surface)), color-mix(in srgb, var(--badge-color) 22%, var(--surface))); background-size: 180% 100%; animation-name: badgeIn, badgeGradient; animation-duration: .55s, 3s; animation-delay: var(--badge-delay), .7s; animation-iteration-count: 1, infinite; }
+  .badge-item.rarity-mythic, .badge-item.rarity-divine, .badge-item.rarity-cosmic { background: linear-gradient(110deg, color-mix(in srgb, var(--badge-color) 32%, var(--surface)), color-mix(in srgb, var(--badge-color) 8%, var(--surface)), color-mix(in srgb, var(--badge-color) 30%, var(--surface))); background-size: 180% 100%; animation-name: badgeIn, badgeGradient; animation-duration: .55s, 2.2s; animation-delay: var(--badge-delay), .7s; animation-iteration-count: 1, infinite; }
+  html[data-theme="dark"] .badge-item.rarity-trash { background: color-mix(in srgb, var(--badge-color) 7%, var(--surface)); }
+  html[data-theme="dark"] .badge-item.rarity-common { background: color-mix(in srgb, var(--badge-color) 11%, var(--surface)); }
+  html[data-theme="dark"] .badge-item.rarity-uncommon { background: color-mix(in srgb, var(--badge-color) 15%, var(--surface)); }
   .badge-item.rarity-epic, .badge-item.rarity-legendary, .badge-item.rarity-mythic { box-shadow: 0 0 18px -8px var(--badge-color); }
   .badge-item.rarity-legendary { animation-name: badgeIn, badgeGlow; animation-duration: .55s, 2.2s; animation-delay: var(--badge-delay), .7s; animation-iteration-count: 1, infinite; }
   .badge-item.rarity-mythic { animation-name: badgeIn, badgeGlow; animation-duration: .55s, 1.4s; animation-delay: var(--badge-delay), .7s; animation-iteration-count: 1, infinite; }
   .badge-item.rarity-epic { border-color: color-mix(in srgb, var(--badge-color) 55%, var(--border)); }
   @keyframes badgeGlow { 0%,100% { box-shadow: 0 0 18px -8px var(--badge-color); } 50% { box-shadow: 0 0 26px 1px var(--badge-color); } }
+  @keyframes badgeGradient { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
   @keyframes badgeIn { to { opacity: 1; transform: translateX(0); } }
   .badge-name { font-weight: 700; font-size: .9rem; }
   .badge-icon { display: inline-block; width: 1.35em; margin-right: 4px; }
@@ -271,7 +287,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   .leaderboard { margin-top: 44px; }
   .leaderboard h2 { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; margin: 0 0 14px; }
   .lb-table { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--surface); }
-  .lb-row { display: grid; grid-template-columns: 36px 1fr 88px 56px 68px; align-items: center; gap: 8px; padding: 11px 14px; font-size: .85rem; }
+  .lb-row { display: grid; grid-template-columns: 36px 1fr 1fr 88px; align-items: center; gap: 8px; padding: 11px 14px; font-size: .85rem; }
   .lb-head { color: var(--text-3); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); }
   .lb-body-row { border-bottom: 1px solid var(--border); transition: background .2s ease; animation: rowIn .35s ease both; }
   @keyframes rowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
@@ -279,6 +295,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   .lb-body-row:hover { background: var(--surface-2); }
   .lb-body-row.me { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   .lb-rank { font-weight: 700; color: var(--text-3); }
+  .lb-word { font-family: "Space Mono", monospace; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lb-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lb-ep { font-family: "Space Mono", monospace; font-weight: 700; }
   .lb-rolls, .lb-best { font-family: "Space Mono", monospace; color: var(--text-2); font-size: .8rem; }
@@ -325,6 +342,9 @@ const HTML_PAGE = `<!DOCTYPE html>
       </div>
 
       <div class="tiles" id="tiles"></div>
+      <div class="roll-confirmation">
+        <div class="roll-rarity" id="rollRarity" aria-live="polite"></div>
+      </div>
 
       <div class="roll-area">
         <button class="roll-btn" id="rollBtn"><span class="btn-shimmer"></span><span class="btn-label">Roll</span></button>
@@ -339,12 +359,11 @@ const HTML_PAGE = `<!DOCTYPE html>
     <section class="result-card" id="result">
       <div class="result-glow" id="resultGlow" aria-hidden="true"></div>
       <div class="result-header">
+        <div class="result-letters" id="resultTitle"></div>
         <div class="result-total total-ep">
           <span class="total-ep-label">Total EP</span>
           <span class="total-ep-value mono" id="totalEp">0</span>
         </div>
-        <div class="result-letters" id="resultTitle"></div>
-        <div class="tier-badge" id="rarityTag"></div>
       </div>
       <ul class="badge-list" id="badgeList"></ul>
       <div class="supporting" id="supporting"></div>
@@ -357,7 +376,7 @@ const HTML_PAGE = `<!DOCTYPE html>
       <h2><span>🏆</span> Leaderboard</h2>
       <div class="lb-table">
         <div class="lb-row lb-head">
-          <span>#</span><span>Name</span><span>Best EP</span><span>Rolls</span><span>Total</span>
+          <span>#</span><span>Word</span><span>Name</span><span>EP</span>
         </div>
         <div id="lbBody"></div>
       </div>
@@ -370,6 +389,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 <script>
 /* ================= word list & game data ================= */
 var WORDS = new Set(["AAA","AARON","ABC","ABLE","ABOUT","ABOVE","ABROAD","ABS","ABSENT","ABU","ABUSE","ACC","ACCENT","ACCEPT","ACCESS","ACE","ACER","ACID","ACIDS","ACM","ACNE","ACRE","ACRES","ACROSS","ACT","ACTING","ACTION","ACTIVE","ACTOR","ACTORS","ACTS","ACTUAL","ACUTE","ADA","ADAM","ADAMS","ADD","ADDED","ADDING","ADDS","ADIDAS","ADIPEX","ADJUST","ADMIN","ADMIT","ADOBE","ADOPT","ADRIAN","ADS","ADSL","ADULT","ADULTS","ADVERT","ADVICE","ADVISE","ADWARE","AERIAL","AFFAIR","AFFECT","AFFORD","AFRAID","AFRICA","AFTER","AGAIN","AGE","AGED","AGENCY","AGENDA","AGENT","AGENTS","AGES","AGING","AGO","AGREE","AGREED","AGREES","AHEAD","AID","AIDS","AIM","AIMED","AIMS","AIR","AKA","ALA","ALAN","ALARM","ALASKA","ALBANY","ALBERT","ALBUM","ALBUMS","ALERT","ALERTS","ALEX","ALFRED","ALI","ALIAS","ALICE","ALIEN","ALIGN","ALIKE","ALIVE","ALL","ALLAH","ALLAN","ALLEN","ALLIED","ALLOW","ALLOWS","ALLOY","ALMOST","ALONE","ALONG","ALOT","ALPHA","ALPINE","ALSO","ALT","ALTER","ALTO","ALUMNI","ALWAYS","AMANDA","AMAZON","AMBER","AMBIEN","AMD","AMEND","AMINO","AMONG","AMOUNT","AMP","AMY","ANA","ANALOG","ANCHOR","AND","ANDALE","ANDREA","ANDREW","ANDY","ANGEL","ANGELA","ANGELS","ANGER","ANGLE","ANGOLA","ANGRY","ANIMAL","ANIME","ANN","ANNA","ANNE","ANNEX","ANNIE","ANNUAL","ANSWER","ANT","ANTI","ANY","ANYONE","ANYWAY","AOL","APACHE","APART","API","APNIC","APOLLO","APP","APPEAL","APPEAR","APPLE","APPLY","APPROX","APPS","APR","APRIL","APT","AQUA","ARAB","ARABIA","ARABIC","ARBOR","ARC","ARCADE","ARCH","ARCTIC","ARE","AREA","AREAS","ARENA","ARG","ARGUE","ARGUED","ARISE","ARM","ARMED","ARMOR","ARMS","ARMY","ARNOLD","AROUND","ARRAY","ARREST","ARRIVE","ARROW","ART","ARTHUR","ARTIST","ARTS","ARUBA","ASCII","ASH","ASHLEY","ASIA","ASIAN","ASIDE","ASIN","ASK","ASKED","ASKING","ASKS","ASN","ASP","ASPECT","ASSESS","ASSET","ASSETS","ASSIGN","ASSIST","ASSUME","ASSURE","ASTHMA","ASUS","ASYLUM","ATA","ATE","ATHENS","ATI","ATLAS","ATM","ATOM","ATOMIC","ATTACH","ATTACK","ATTEND","AUBURN","AUD","AUDI","AUDIO","AUDIT","AUG","AUGUST","AURORA","AUS","AUSTIN","AUTHOR","AUTO","AUTOS","AUTUMN","AVATAR","AVE","AVENUE","AVG","AVI","AVOID","AVON","AWARD","AWARDS","AWARE","AWAY","AWFUL","AXIS","AYE","BABE","BABES","BABIES","BABY","BACK","BACKED","BACKUP","BACON","BAD","BADGE","BADLY","BAG","BAGS","BAILEY","BAKER","BAKING","BALD","BALI","BALL","BALLET","BALLOT","BAN","BANANA","BAND","BANDS","BANG","BANK","BANKS","BANNED","BANNER","BAR","BARBIE","BARE","BARELY","BARN","BARNES","BARREL","BARRY","BARS","BASE","BASED","BASES","BASIC","BASICS","BASIN","BASIS","BASKET","BASS","BAT","BATCH","BATH","BATHS","BATMAN","BATTLE","BAY","BBC","BBS","BEACH","BEADS","BEAM","BEAN","BEANS","BEAR","BEARS","BEAST","BEAT","BEATS","BEAUTY","BEAVER","BECAME","BECOME","BED","BEDS","BEE","BEEF","BEEN","BEER","BEFORE","BEGAN","BEGIN","BEGINS","BEGUN","BEHALF","BEHIND","BEING","BEINGS","BELIEF","BELIZE","BELKIN","BELL","BELLE","BELLY","BELONG","BELOW","BELT","BELTS","BEN","BENCH","BEND","BENT","BENZ","BERLIN","BERRY","BESIDE","BEST","BET","BETA","BETH","BETTER","BETTY","BEYOND","BHUTAN","BIAS","BIBLE","BID","BIDDER","BIDS","BIG","BIGGER","BIKE","BIKES","BIKINI","BILL","BILLS","BILLY","BIN","BINARY","BIND","BINGO","BIO","BIOL","BIOS","BIRD","BIRDS","BIRTH","BISHOP","BIT","BITE","BITS","BIZ","BLACK","BLACKS","BLADE","BLADES","BLAH","BLAIR","BLAKE","BLAME","BLANK","BLAST","BLEND","BLESS","BLIND","BLINK","BLOCK","BLOCKS","BLOG","BLOGS","BLOND","BLONDE","BLOOD","BLOOM","BLOW","BLUE","BLUES","BLVD","BMW","BOARD","BOARDS","BOAT","BOATS","BOB","BOBBY","BOC","BODIES","BODY","BOLD","BOLT","BOMB","BON","BOND","BONDS","BONE","BONES","BONUS","BOOK","BOOKS","BOOL","BOOM","BOOST","BOOT","BOOTH","BOOTS","BOOTY","BORDER","BORED","BORING","BORN","BOSNIA","BOSS","BOSTON","BOTH","BOTHER","BOTTLE","BOTTOM","BOUGHT","BOUND","BOW","BOWL","BOX","BOXED","BOXES","BOXING","BOY","BOYS","BRA","BRAD","BRAIN","BRAKE","BRAKES","BRANCH","BRAND","BRANDS","BRAS","BRASS","BRAVE","BRAZIL","BREACH","BREAD","BREAK","BREAKS","BREAST","BREATH","BREED","BREEDS","BRIAN","BRICK","BRIDAL","BRIDE","BRIDGE","BRIEF","BRIEFS","BRIGHT","BRING","BRINGS","BROAD","BROKE","BROKEN","BROKER","BRONZE","BROOK","BROOKS","BROWN","BROWSE","BRUCE","BRUNEI","BRUSH","BRUTAL","BRYAN","BRYANT","BUBBLE","BUCK","BUCKS","BUDDY","BUDGET","BUF","BUFFER","BUFING","BUG","BUGS","BUILD","BUILDS","BUILT","BULK","BULL","BULLET","BUMPER","BUNCH","BUNDLE","BUNNY","BURDEN","BUREAU","BURIED","BURKE","BURN","BURNER","BURNS","BURST","BURTON","BUS","BUSES","BUSH","BUSY","BUT","BUTLER","BUTTER","BUTTON","BUTTS","BUY","BUYER","BUYERS","BUYING","BUYS","BUZZ","BYE","BYTE","BYTES","CAB","CABIN","CABLE","CABLES","CACHE","CACHED","CAD","CAFE","CAGE","CAKE","CAKES","CAL","CALL","CALLED","CALLS","CALM","CALVIN","CAM","CAME","CAMEL","CAMERA","CAMP","CAMPS","CAMPUS","CAMS","CAN","CANADA","CANAL","CANCEL","CANCER","CANDLE","CANDY","CANNON","CANON","CANT","CANVAS","CANYON","CAP","CAPE","CAPS","CAR","CARB","CARBON","CARD","CARDS","CARE","CAREER","CAREY","CARGO","CARING","CARL","CARLO","CARLOS","CARMEN","CAROL","CARPET","CARRY","CARS","CART","CARTER","CAS","CASA","CASE","CASES","CASEY","CASH","CASINO","CASIO","CAST","CASTLE","CASUAL","CAT","CATCH","CATS","CATTLE","CAUGHT","CAUSE","CAUSED","CAUSES","CAVE","CAYMAN","CBS","CCD","CDNA","CDS","CDT","CEDAR","CELEBS","CELL","CELLS","CELTIC","CEMENT","CENSUS","CENT","CENTER","CENTRE","CENTS","CEO","CET","CFR","CGI","CHAD","CHAIN","CHAINS","CHAIR","CHAIRS","CHAN","CHANCE","CHANGE","CHAOS","CHAPEL","CHAR","CHARGE","CHARM","CHARMS","CHART","CHARTS","CHASE","CHAT","CHEAP","CHEAT","CHEATS","CHECK","CHECKS","CHEERS","CHEESE","CHEF","CHEM","CHEN","CHEQUE","CHERRY","CHESS","CHEST","CHEVY","CHI","CHICK","CHICKS","CHIEF","CHILD","CHILE","CHINA","CHIP","CHIPS","CHO","CHOICE","CHOIR","CHOOSE","CHORUS","CHOSE","CHOSEN","CHRIS","CHRIST","CHROME","CHUBBY","CHUCK","CHURCH","CIA","CIALIS","CIAO","CINDY","CINEMA","CIO","CIR","CIRCLE","CIRCUS","CISCO","CITE","CITED","CITIES","CITY","CIVIC","CIVIL","CLAIM","CLAIMS","CLAIRE","CLAN","CLARA","CLARK","CLARKE","CLASS","CLAUSE","CLAY","CLEAN","CLEAR","CLERK","CLICK","CLICKS","CLIENT","CLIFF","CLIMB","CLINIC","CLIP","CLIPS","CLOCK","CLOCKS","CLONE","CLOSE","CLOSED","CLOSER","CLOSES","CLOTH","CLOUD","CLOUDS","CLOUDY","CLUB","CLUBS","CMS","CNET","CNN","COACH","COAL","COAST","COAT","COATED","COD","CODE","CODES","CODING","COFFEE","COHEN","COIN","COINS","COL","COLD","COLE","COLIN","COLLAR","COLON","COLONY","COLOR","COLORS","COLOUR","COLUMN","COM","COMBAT","COMBO","COME","COMEDY","COMES","COMIC","COMICS","COMING","COMM","COMMIT","COMMON","COMP","COMPAQ","COMPLY","CON","CONDO","CONDOS","CONF","CONFIG","CONGO","CONS","CONST","COOK","COOKED","COOKIE","COOL","COOLER","COOPER","COP","COPE","COPIED","COPIES","COPPER","COPY","CORAL","CORD","CORE","CORK","CORN","CORNER","CORP","CORPS","CORPUS","COS","COST","COSTA","COSTS","COTTON","COULD","COUNT","COUNTS","COUNTY","COUPLE","COUPON","COURSE","COURT","COURTS","COVE","COVER","COVERS","COW","COWBOY","CPU","CRACK","CRADLE","CRAFT","CRAFTS","CRAIG","CRAPS","CRASH","CRAZY","CREAM","CREATE","CREDIT","CREEK","CREST","CREW","CRIME","CRIMES","CRISIS","CRM","CROP","CROPS","CROSS","CROWD","CROWN","CRUDE","CRUISE","CRUZ","CRY","CSS","CST","CTRL","CUBA","CUBE","CUBIC","CULT","CUP","CUPS","CURE","CURSOR","CURTIS","CURVE","CURVES","CUSTOM","CUT","CUTE","CUTS","CVS","CYBER","CYCLE","CYCLES","CYPRUS","CZECH","DAD","DADDY","DAILY","DAIRY","DAISY","DAKOTA","DALE","DALLAS","DAM","DAMAGE","DAME","DAN","DANA","DANCE","DANGER","DANIEL","DANISH","DANNY","DANS","DARE","DARK","DARWIN","DAS","DASH","DAT","DATA","DATE","DATED","DATES","DATING","DAVE","DAVID","DAVIS","DAWN","DAY","DAYS","DAYTON","DDR","DEAD","DEADLY","DEAF","DEAL","DEALER","DEALS","DEALT","DEAN","DEAR","DEATH","DEATHS","DEBATE","DEBIAN","DEBT","DEBUG","DEBUT","DEC","DECADE","DECENT","DECIDE","DECK","DECOR","DEE","DEEMED","DEEP","DEEPER","DEEPLY","DEER","DEF","DEFEAT","DEFEND","DEFINE","DEGREE","DEL","DELAY","DELAYS","DELETE","DELHI","DELL","DELTA","DELUXE","DEM","DEMAND","DEMO","DEN","DENIAL","DENIED","DENNIS","DENSE","DENTAL","DENVER","DENY","DEPEND","DEPOT","DEPT","DEPTH","DEPUTY","DER","DERBY","DEREK","DES","DESERT","DESIGN","DESIRE","DESK","DETAIL","DETECT","DEV","DEVEL","DEVICE","DEVIL","DEVON","DIAL","DIALOG","DIANA","DIANE","DIARY","DICE","DICKE","DID","DIE","DIED","DIEGO","DIES","DIESEL","DIET","DIFF","DIFFER","DIFFS","DIG","DIGEST","DIGIT","DIM","DINING","DINNER","DIP","DIR","DIRECT","DIRT","DIRTY","DIS","DISC","DISCO","DISCS","DISH","DISHES","DISK","DISKS","DISNEY","DIST","DIV","DIVE","DIVIDE","DIVINE","DIVING","DIVX","DIY","DNA","DNS","DOC","DOCK","DOCS","DOCTOR","DOD","DODGE","DOE","DOES","DOG","DOGS","DOING","DOLL","DOLLAR","DOLLS","DOM","DOMAIN","DOME","DON","DONALD","DONATE","DONE","DONNA","DONOR","DONORS","DONT","DOOM","DOOR","DOORS","DOS","DOSAGE","DOSE","DOT","DOUBLE","DOUBT","DOUG","DOVER","DOW","DOWN","DOZEN","DOZENS","DPI","DRAFT","DRAG","DRAGON","DRAIN","DRAMA","DRAW","DRAWN","DRAWS","DREAM","DREAMS","DRESS","DREW","DRIED","DRILL","DRINK","DRINKS","DRIVE","DRIVEN","DRIVER","DRIVES","DROP","DROPS","DROVE","DRUG","DRUGS","DRUM","DRUMS","DRUNK","DRY","DRYER","DSC","DSL","DTS","DUAL","DUBAI","DUBLIN","DUCK","DUDE","DUE","DUI","DUKE","DUMB","DUMP","DUNCAN","DUO","DURHAM","DURING","DUST","DUTCH","DUTIES","DUTY","DVD","DVDS","DYING","DYLAN","EACH","EAGLE","EAGLES","EAR","EARL","EARLY","EARN","EARNED","EARS","EARTH","EASE","EASIER","EASILY","EAST","EASTER","EASY","EAT","EATING","EAU","EBAY","EBONY","EBOOK","EBOOKS","ECHO","ECO","EDDIE","EDEN","EDGAR","EDGE","EDGES","EDIT","EDITED","EDITOR","EDS","EDT","EDWARD","EFFECT","EFFORT","EGG","EGGS","EGYPT","EIGHT","EITHER","ELDER","ELECT","ELEVEN","ELITE","ELLEN","ELLIS","ELSE","ELVIS","EMACS","EMAIL","EMAILS","EMILY","EMINEM","EMMA","EMPIRE","EMPLOY","EMPTY","ENABLE","ENB","END","ENDED","ENDIF","ENDING","ENDS","ENEMY","ENERGY","ENG","ENGAGE","ENGINE","ENJOY","ENOUGH","ENSURE","ENT","ENTER","ENTERS","ENTIRE","ENTITY","ENTRY","ENZYME","EOS","EPA","EPIC","EPSON","EQUAL","EQUITY","ERA","ERIC","ERIK","ERP","ERROR","ERRORS","ESCAPE","ESPN","ESSAY","ESSAYS","ESSEX","EST","ESTATE","ETC","ETHICS","ETHNIC","EUGENE","EUR","EURO","EUROPE","EUROS","EVA","EVAL","EVANS","EVE","EVEN","EVENT","EVENTS","EVER","EVERY","EVIL","EXACT","EXAM","EXAMS","EXCEED","EXCEL","EXCEPT","EXCESS","EXCUSE","EXEC","EXEMPT","EXIST","EXISTS","EXIT","EXOTIC","EXP","EXPAND","EXPECT","EXPERT","EXPO","EXPORT","EXT","EXTEND","EXTENT","EXTRA","EXTRAS","EYE","EYED","EYES","FABRIC","FACE","FACED","FACES","FACIAL","FACING","FACT","FACTOR","FACTS","FAIL","FAILED","FAILS","FAIR","FAIRLY","FAIRY","FAITH","FAKE","FALL","FALLEN","FALLS","FALSE","FAME","FAMILY","FAMOUS","FAN","FANCY","FANS","FAQ","FAQS","FAR","FARE","FARES","FARM","FARMER","FARMS","FAST","FASTER","FAT","FATAL","FATE","FATHER","FATTY","FAULT","FAVOR","FAVORS","FAVOUR","FAX","FBI","FCC","FDA","FEAR","FEARS","FEAT","FEB","FED","FEE","FEED","FEEDS","FEEL","FEELS","FEES","FEET","FELL","FELLOW","FELT","FEMALE","FENCE","FEOF","FERRY","FETISH","FEVER","FEW","FEWER","FIBER","FIBRE","FIELD","FIELDS","FIFTH","FIFTY","FIG","FIGHT","FIGURE","FIJI","FILE","FILED","FILES","FILING","FILL","FILLED","FILM","FILME","FILMS","FILTER","FIN","FINAL","FINALS","FIND","FINDER","FINDS","FINE","FINEST","FINGER","FINISH","FINITE","FIRE","FIRED","FIRES","FIRM","FIRMS","FIRST","FISCAL","FISH","FISHER","FIST","FIT","FITS","FITTED","FIVE","FIX","FIXED","FIXES","FLAG","FLAGS","FLAME","FLASH","FLAT","FLAVOR","FLEECE","FLEET","FLESH","FLEX","FLICKR","FLIGHT","FLIP","FLOAT","FLOOD","FLOOR","FLOORS","FLOPPY","FLORAL","FLOUR","FLOW","FLOWER","FLOWS","FLOYD","FLU","FLUID","FLUSH","FLUX","FLY","FLYER","FLYING","FOAM","FOCAL","FOCUS","FOG","FOLD","FOLDER","FOLK","FOLKS","FOLLOW","FONT","FONTS","FOO","FOOD","FOODS","FOOL","FOOT","FOR","FORBES","FORCE","FORCED","FORCES","FORD","FOREST","FORGE","FORGET","FORGOT","FORK","FORM","FORMAL","FORMAT","FORMED","FORMER","FORMS","FORT","FORTH","FORTY","FORUM","FORUMS","FOSSIL","FOSTER","FOTO","FOTOS","FOUGHT","FOUL","FOUND","FOUR","FOURTH","FOX","FRAME","FRAMED","FRAMES","FRANCE","FRANK","FRASER","FRAUD","FRED","FREE","FREELY","FREEZE","FRENCH","FRESH","FRI","FRIDAY","FRIDGE","FRIEND","FROG","FROM","FRONT","FROST","FROZEN","FRUIT","FRUITS","FTP","FUEL","FUJI","FULL","FULLY","FUN","FUND","FUNDED","FUNDS","FUNK","FUNKY","FUNNY","FUR","FUSION","FUTURE","FUZZY","FWD","GAGE","GAIN","GAINED","GAINS","GALAXY","GALE","GAME","GAMES","GAMING","GAMMA","GANG","GAP","GAPS","GARAGE","GARCIA","GARDEN","GARLIC","GARMIN","GARY","GAS","GATE","GATES","GATHER","GAUGE","GAVE","GAY","GAYS","GBA","GBP","GCC","GDP","GEAR","GEEK","GEL","GEM","GEN","GENDER","GENE","GENES","GENEVA","GENIUS","GENOME","GENRE","GENRES","GENTLE","GENTLY","GEO","GEORGE","GERALD","GERMAN","GET","GETS","GHANA","GHOST","GHZ","GIANT","GIANTS","GIBSON","GIF","GIFT","GIFTS","GIG","GIRL","GIRLS","GIS","GIVE","GIVEN","GIVES","GIVING","GLAD","GLANCE","GLASS","GLEN","GLENN","GLOBAL","GLOBE","GLORY","GLOVES","GLOW","GMBH","GMC","GMT","GNOME","GNU","GOAL","GOALS","GOAT","GODS","GOES","GOING","GOLD","GOLDEN","GOLF","GONE","GONNA","GOOD","GOODS","GOOGLE","GORDON","GORE","GOSPEL","GOSSIP","GOT","GOTHIC","GOTO","GOTTA","GOTTEN","GPL","GPS","GRAB","GRACE","GRAD","GRADE","GRADES","GRAHAM","GRAIN","GRAMS","GRAND","GRANDE","GRANNY","GRANT","GRANTS","GRAPH","GRAPHS","GRAS","GRASS","GRATIS","GRAVE","GRAY","GREAT","GREECE","GREEK","GREEN","GREENE","GREG","GREW","GREY","GRID","GRILL","GRIP","GROOVE","GROSS","GROUND","GROUP","GROUPS","GROVE","GROW","GROWN","GROWS","GROWTH","GSM","GST","GTK","GUAM","GUARD","GUARDS","GUESS","GUEST","GUESTS","GUI","GUIDE","GUIDED","GUIDES","GUILD","GUILTY","GUINEA","GUITAR","GULF","GUN","GUNS","GURU","GUY","GUYANA","GUYS","GYM","GZIP","HABITS","HACK","HACKER","HAD","HAIR","HAIRY","HAITI","HALF","HALL","HALO","HAM","HAMMER","HAND","HANDED","HANDLE","HANDS","HANDY","HANG","HANS","HANSEN","HAPPEN","HAPPY","HARBOR","HARD","HARDER","HARDLY","HARLEY","HARM","HAROLD","HARPER","HARRIS","HARRY","HART","HARVEY","HAS","HASH","HAT","HATE","HATS","HAVE","HAVEN","HAVING","HAWAII","HAWK","HAY","HAYES","HAZARD","HDTV","HEAD","HEADED","HEADER","HEADS","HEALTH","HEAR","HEARD","HEART","HEARTS","HEAT","HEATED","HEATER","HEATH","HEAVEN","HEAVY","HEBREW","HEEL","HEIGHT","HELD","HELEN","HELENA","HELLO","HELMET","HELP","HELPED","HELPS","HENCE","HENRY","HER","HERALD","HERB","HERBAL","HERBS","HERE","HEREBY","HEREIN","HERO","HEROES","HEY","HIDDEN","HIDE","HIGH","HIGHER","HIGHLY","HIGHS","HIKING","HILL","HILLS","HILTON","HIM","HINDU","HINT","HINTS","HIP","HIRE","HIRED","HIRING","HIS","HIST","HIT","HITS","HIV","HOBBY","HOCKEY","HOLD","HOLDEM","HOLDER","HOLDS","HOLE","HOLES","HOLLOW","HOLLY","HOLMES","HOLY","HOME","HOMES","HON","HONDA","HONEST","HONEY","HONG","HONOR","HONORS","HOOD","HOOK","HOP","HOPE","HOPED","HOPES","HOPING","HORN","HORROR","HORSE","HORSES","HOSE","HOST","HOSTED","HOSTEL","HOSTS","HOT","HOTEL","HOTELS","HOUR","HOURLY","HOURS","HOUSE","HOUSES","HOW","HOWARD","HOWTO","HREF","HRS","HTML","HTTP","HUB","HUDSON","HUGE","HUGH","HUGHES","HUGO","HULL","HUMAN","HUMANS","HUMOR","HUNG","HUNGER","HUNGRY","HUNT","HUNTER","HURT","HWY","HYBRID","IAN","IBM","ICE","ICON","ICONS","ICQ","ICT","IDAHO","IDE","IDEA","IDEAL","IDEAS","IDLE","IDOL","IDS","IEEE","IGNORE","III","ILL","IMAGE","IMAGES","IMG","IMMUNE","IMPACT","IMPORT","IMPOSE","INBOX","INC","INCH","INCHES","INCL","INCOME","IND","INDEED","INDEX","INDIA","INDIAN","INDIE","INDOOR","INF","INFANT","INFO","INFORM","ING","INJURY","INK","INKJET","INLINE","INN","INNER","INNS","INPUT","INPUTS","INS","INSERT","INSIDE","INT","INTAKE","INTEL","INTEND","INTENT","INTER","INTL","INTO","INTRO","INVEST","INVITE","ION","IOWA","IPAQ","IPOD","IPS","IRA","IRAN","IRAQ","IRAQI","IRC","IRISH","IRON","IRS","ISA","ISAAC","ISBN","ISLAM","ISLAND","ISLE","ISO","ISP","ISRAEL","ISSN","ISSUE","ISSUED","ISSUES","IST","ITALIA","ITALIC","ITALY","ITEM","ITEMS","ITS","ITSELF","ITUNES","IVORY","JACK","JACKET","JACKIE","JACOB","JADE","JAGUAR","JAIL","JAKE","JAM","JAMES","JAMIE","JAN","JANE","JANET","JAPAN","JAR","JASON","JAVA","JAY","JAZZ","JEAN","JEANS","JEEP","JEFF","JENNY","JEREMY","JERRY","JERSEY","JESSE","JESUS","JET","JETS","JEWEL","JEWISH","JEWS","JILL","JIM","JIMMY","JOAN","JOB","JOBS","JOE","JOEL","JOHN","JOHNNY","JOHNS","JOIN","JOINED","JOINS","JOINT","JOKE","JOKES","JON","JONES","JORDAN","JOSE","JOSEPH","JOSH","JOSHUA","JOY","JOYCE","JPEG","JPG","JUAN","JUDGE","JUDGES","JUDY","JUICE","JUL","JULIA","JULIAN","JULIE","JULY","JUMP","JUN","JUNE","JUNGLE","JUNIOR","JUNK","JURY","JUST","JUSTIN","JVC","KAI","KANSAS","KAREN","KARL","KARMA","KATE","KATHY","KATIE","KAY","KDE","KEEN","KEEP","KEEPS","KEITH","KELKOO","KELLY","KEN","KENNY","KENO","KENT","KENYA","KEPT","KERNEL","KERRY","KEVIN","KEY","KEYS","KICK","KID","KIDNEY","KIDS","KIJIJI","KILL","KILLED","KILLER","KILLS","KIM","KINASE","KIND","KINDA","KINDS","KING","KINGS","KIRK","KISS","KIT","KITS","KITTY","KLEIN","KNEE","KNEW","KNIFE","KNIGHT","KNIT","KNIVES","KNOCK","KNOW","KNOWN","KNOWS","KODAK","KONG","KOREA","KOREAN","KRUGER","KURT","KUWAIT","KYLE","LAB","LABEL","LABELS","LABOR","LABOUR","LABS","LACE","LACK","LADDER","LADEN","LADIES","LADY","LAID","LAKE","LAKES","LAMB","LAMBDA","LAMP","LAMPS","LAN","LANCE","LAND","LANDS","LANE","LANES","LANG","LANKA","LAOS","LAP","LAPTOP","LARGE","LARGER","LARRY","LAS","LASER","LAST","LAT","LATE","LATELY","LATER","LATEST","LATEX","LATIN","LATINA","LATINO","LATTER","LATVIA","LAUGH","LAUNCH","LAURA","LAUREN","LAW","LAWN","LAWS","LAWYER","LAY","LAYER","LAYERS","LAYOUT","LAZY","LBS","LCD","LEAD","LEADER","LEADS","LEAF","LEAGUE","LEAN","LEARN","LEASE","LEAST","LEAVE","LEAVES","LED","LEE","LEEDS","LEFT","LEG","LEGACY","LEGAL","LEGEND","LEGS","LEMON","LEN","LENDER","LENGTH","LENS","LENSES","LEO","LEON","LEONE","LES","LESLIE","LESS","LESSER","LESSON","LET","LETS","LETTER","LEU","LEVEL","LEVELS","LEVY","LEWIS","LEXUS","LIABLE","LIB","LIBS","LID","LIE","LIES","LIFE","LIFT","LIGHT","LIGHTS","LIKE","LIKED","LIKELY","LIKES","LIL","LIME","LIMIT","LIMITS","LINDA","LINE","LINEAR","LINED","LINES","LINK","LINKED","LINKS","LINUX","LION","LIONS","LIP","LIPS","LIQUID","LISA","LIST","LISTED","LISTEN","LISTS","LIT","LITE","LITTLE","LIVE","LIVED","LIVER","LIVES","LIVING","LIZ","LLC","LLOYD","LLP","LOAD","LOADED","LOADS","LOAN","LOANS","LOBBY","LOC","LOCAL","LOCALE","LOCATE","LOCK","LOCKED","LOCKS","LODGE","LOG","LOGAN","LOGGED","LOGIC","LOGIN","LOGO","LOGOS","LOGS","LOL","LONDON","LONE","LONELY","LONG","LONGER","LOOK","LOOKED","LOOKS","LOOKUP","LOOP","LOOPS","LOOSE","LOPEZ","LORD","LOS","LOSE","LOSING","LOSS","LOSSES","LOST","LOT","LOTS","LOTUS","LOU","LOUD","LOUIS","LOUISE","LOUNGE","LOVE","LOVED","LOVELY","LOVER","LOVERS","LOVES","LOVING","LOW","LOWER","LOWEST","LOWS","LTD","LUCAS","LUCIA","LUCK","LUCKY","LUCY","LUIS","LUKE","LUNCH","LUNG","LUTHER","LUXURY","LYCOS","LYING","LYNN","LYRIC","LYRICS","MAC","MACRO","MAD","MADE","MADRID","MAE","MAG","MAGIC","MAGNET","MAI","MAIDEN","MAIL","MAILED","MAILS","MAILTO","MAIN","MAINE","MAINLY","MAJOR","MAKE","MAKER","MAKERS","MAKES","MAKEUP","MAKING","MALAWI","MALE","MALES","MALI","MALL","MALTA","MAMBO","MAN","MANAGE","MANGA","MANNER","MANOR","MANUAL","MANY","MAP","MAPLE","MAPS","MAR","MARBLE","MARC","MARCH","MARCO","MARCUS","MARDI","MARGIN","MARIA","MARIAH","MARIE","MARINA","MARINE","MARIO","MARION","MARK","MARKED","MARKER","MARKET","MARKS","MARS","MARSH","MART","MARTHA","MARTIN","MARVEL","MARY","MAS","MASK","MASON","MASS","MASTER","MAT","MATCH","MATE","MATH","MATING","MATRIX","MATS","MATT","MATTER","MATURE","MAUI","MAX","MAY","MAYBE","MAYOR","MAZDA","MBA","MEAL","MEALS","MEAN","MEANS","MEANT","MEAT","MED","MEDAL","MEDIA","MEDIAN","MEDIUM","MEET","MEETS","MEETUP","MEGA","MEL","MEM","MEMBER","MEMO","MEMORY","MEN","MENS","MENT","MENTAL","MENTOR","MENU","MENUS","MERCY","MERE","MERELY","MERGE","MERGER","MERIT","MERRY","MESA","MESH","MESS","MET","META","METAL","METALS","METER","METERS","METHOD","METRES","METRIC","METRO","MEXICO","MEYER","MHZ","MIA","MIAMI","MIC","MICE","MICHEL","MICRO","MID","MIDDLE","MIDI","MIGHT","MIGHTY","MIKE","MIL","MILAN","MILD","MILE","MILES","MILK","MILL","MILLER","MILLS","MILTON","MIME","MIN","MIND","MINDS","MINE","MINES","MINI","MINING","MINOR","MINS","MINT","MINUS","MINUTE","MIRROR","MISC","MISS","MISSED","MIT","MIX","MIXED","MIXER","MIXING","MLB","MLS","MOBILE","MOD","MODE","MODEL","MODELS","MODEM","MODEMS","MODERN","MODES","MODIFY","MODS","MODULE","MOLD","MOM","MOMENT","MOMS","MON","MONACO","MONDAY","MONEY","MONICA","MONKEY","MONO","MONROE","MONTE","MONTH","MONTHS","MOOD","MOON","MOORE","MORAL","MORE","MORGAN","MORRIS","MOSCOW","MOSES","MOSS","MOST","MOSTLY","MOTEL","MOTELS","MOTHER","MOTION","MOTOR","MOTORS","MOUNT","MOUNTS","MOUSE","MOUTH","MOVE","MOVED","MOVERS","MOVES","MOVIE","MOVIES","MOVING","MPEG","MPEGS","MPG","MPH","MRNA","MRS","MSG","MSGID","MSGSTR","MSIE","MSN","MTV","MUCH","MUD","MUG","MULTI","MUMBAI","MUNICH","MURDER","MURPHY","MURRAY","MUSCLE","MUSEUM","MUSIC","MUSLIM","MUST","MUTUAL","MUZE","MYERS","MYRTLE","MYSELF","MYSQL","MYTH","NAIL","NAILS","NAKED","NAM","NAME","NAMED","NAMELY","NAMES","NANCY","NANO","NAPLES","NARROW","NASA","NASCAR","NASDAQ","NASTY","NAT","NATHAN","NATION","NATIVE","NATO","NATURE","NAV","NAVAL","NAVY","NBA","NBC","NCAA","NEAR","NEARBY","NEARLY","NEC","NECK","NEED","NEEDED","NEEDLE","NEEDS","NEIL","NELSON","NEO","NEON","NEPAL","NERVE","NEST","NESTED","NET","NEURAL","NEVADA","NEVER","NEW","NEWARK","NEWBIE","NEWER","NEWEST","NEWLY","NEWMAN","NEWS","NEWTON","NEXT","NEXTEL","NFL","NHL","NHS","NICE","NICK","NICKEL","NICOLE","NIGER","NIGHT","NIGHTS","NIKE","NIKON","NIL","NINE","NISSAN","NOBLE","NOBODY","NODE","NODES","NOISE","NOKIA","NON","NONE","NOON","NOR","NORM","NORMAL","NORMAN","NORTH","NORTON","NORWAY","NOSE","NOT","NOTE","NOTED","NOTES","NOTICE","NOTIFY","NOTION","NOTRE","NOV","NOVA","NOVEL","NOVELS","NOW","NSW","NTSC","NUDIST","NUKE","NULL","NUMBER","NURSE","NURSES","NUT","NUTS","NUTTEN","NVIDIA","NYC","NYLON","OAK","OAKS","OASIS","OBJ","OBJECT","OBTAIN","OCCUR","OCCURS","OCEAN","OCLC","OCT","ODD","ODDS","OECD","OEM","OFF","OFFER","OFFERS","OFFICE","OFFSET","OFTEN","OHIO","OIL","OILS","OKAY","OLD","OLDER","OLDEST","OLIVE","OLIVER","OMAHA","OMAN","OMEGA","ONCE","ONE","ONES","ONION","ONLINE","ONLY","ONS","ONTO","OOO","OOPS","OPEN","OPENED","OPENS","OPERA","OPT","OPTICS","OPTION","ORACLE","ORAL","ORANGE","ORBIT","ORDER","ORDERS","OREGON","ORG","ORGAN","ORIGIN","OSCAR","OTHER","OTHERS","OTTAWA","OUGHT","OUR","OURS","OUT","OUTER","OUTLET","OUTPUT","OVAL","OVEN","OVER","OWEN","OWN","OWNED","OWNER","OWNERS","OWNS","OXFORD","OXIDE","OXYGEN","OZONE","PAC","PACE","PACK","PACKED","PACKET","PACKS","PAD","PADS","PAGE","PAGES","PAID","PAIN","PAINT","PAIR","PAIRS","PAL","PALACE","PALE","PALM","PALMER","PAM","PAMELA","PAN","PANAMA","PANEL","PANELS","PANIC","PANTS","PAPER","PAPERS","PAPUA","PAR","PARA","PARADE","PARCEL","PARENT","PARIS","PARISH","PARK","PARKER","PARKS","PART","PARTLY","PARTS","PARTY","PAS","PASO","PASS","PASSED","PASSES","PAST","PASTA","PASTE","PASTOR","PAT","PATCH","PATENT","PATH","PATHS","PATIO","PATROL","PAUL","PAXIL","PAY","PAYDAY","PAYING","PAYPAL","PAYS","PCI","PCS","PCT","PDA","PDAS","PDF","PDT","PEACE","PEAK","PEARL","PEAS","PEE","PEEING","PEER","PEERS","PEN","PENCIL","PENN","PENNY","PENS","PEOPLE","PEPPER","PER","PERIOD","PERL","PERMIT","PERRY","PERSON","PERTH","PERU","PEST","PET","PETE","PETER","PETITE","PETS","PGP","PHASE","PHASES","PHD","PHI","PHIL","PHILIP","PHONE","PHONES","PHOTO","PHOTOS","PHP","PHPBB","PHRASE","PHYS","PIANO","PIC","PICK","PICKED","PICKS","PICKUP","PICNIC","PICS","PIE","PIECE","PIECES","PIERCE","PIERRE","PIG","PIKE","PILL","PILLOW","PILLS","PILOT","PIN","PINE","PING","PINK","PINS","PIPE","PIPES","PIT","PITCH","PIX","PIXEL","PIXELS","PIZZA","PLACE","PLACED","PLACES","PLAIN","PLAINS","PLAN","PLANE","PLANES","PLANET","PLANS","PLANT","PLANTS","PLASMA","PLATE","PLATES","PLAY","PLAYED","PLAYER","PLAYS","PLAZA","PLC","PLEASE","PLEDGE","PLENTY","PLOT","PLOTS","PLUG","PLUGIN","PLUS","PMC","PMID","POCKET","POD","POEM","POEMS","POET","POETRY","POINT","POINTS","POISON","POKER","POLAND","POLAR","POLE","POLICE","POLICY","POLISH","POLL","POLLS","POLO","POLY","POND","POOL","POOLS","POOR","POP","POPE","POR","PORK","PORT","PORTAL","PORTER","PORTS","POS","POSE","POSING","POST","POSTAL","POSTED","POSTER","POSTS","POT","POTATO","POTTER","POUND","POUNDS","POUR","POWDER","POWELL","POWER","POWERS","PPC","PPM","PRAGUE","PRAISE","PRAY","PRAYER","PRE","PREFER","PREFIX","PREP","PRESS","PRETTY","PREV","PRICE","PRICED","PRICES","PRIDE","PRIEST","PRIME","PRINCE","PRINT","PRINTS","PRIOR","PRISON","PRIX","PRIZE","PRIZES","PRO","PROBE","PROC","PROFIT","PROMO","PROMPT","PROOF","PROPER","PROS","PROT","PROUD","PROVE","PROVED","PROVEN","PROXY","PROZAC","PSI","PSP","PST","PTS","PTY","PUB","PUBLIC","PUBMED","PUBS","PUERTO","PULL","PULLED","PULSE","PUMP","PUMPS","PUNCH","PUNK","PUPILS","PUPPY","PURE","PURPLE","PURSE","PURSUE","PUSH","PUSHED","PUT","PUTS","PUZZLE","PVC","PYTHON","QATAR","QLD","QTY","QUAD","QUE","QUEBEC","QUEEN","QUEENS","QUERY","QUEST","QUEUE","QUI","QUICK","QUIET","QUILT","QUIT","QUITE","QUIZ","QUOTE","QUOTED","QUOTES","RABBIT","RACE","RACES","RACHEL","RACIAL","RACING","RACK","RACKS","RADAR","RADIO","RADIOS","RADIUS","RAGE","RAID","RAIL","RAIN","RAISE","RAISED","RAISES","RALLY","RALPH","RAM","RAN","RANCH","RAND","RANDOM","RANDY","RANGE","RANGER","RANGES","RANK","RANKED","RANKS","RAP","RAPID","RAPIDS","RARE","RARELY","RAT","RATE","RATED","RATES","RATHER","RATING","RATIO","RATIOS","RATS","RAW","RAY","RAYS","RCA","REACH","READ","READER","READS","READY","REAL","REALLY","REALM","REALTY","REAR","REASON","REBATE","REBEL","REC","RECALL","RECENT","RECIPE","RECORD","RED","REDEEM","REDUCE","REED","REEF","REEL","REF","REFER","REFERS","REFINE","REFORM","REFUND","REFUSE","REG","REGARD","REGGAE","REGIME","REGION","REHAB","REID","REJECT","RELATE","RELAX","RELAY","RELIEF","RELOAD","RELY","REMAIN","REMARK","REMEDY","REMIND","REMIX","REMOTE","REMOVE","RENDER","RENEW","RENO","RENT","RENTAL","REP","REPAIR","REPEAT","REPLY","REPORT","RES","RESCUE","RESET","RESIST","RESORT","REST","RESULT","RESUME","RETAIL","RETAIN","RETRO","RETURN","REV","REVEAL","REVIEW","REWARD","RFC","RHODE","RHYTHM","RIBBON","RICA","RICE","RICH","RICK","RICKY","RICO","RID","RIDE","RIDER","RIDERS","RIDES","RIDGE","RIDING","RIGHT","RIGHTS","RIM","RING","RINGS","RIO","RIP","RIPE","RISE","RISING","RISK","RISKS","RIVER","RIVERS","RNA","ROAD","ROADS","ROB","ROBBIE","ROBERT","ROBIN","ROBOT","ROBOTS","ROBUST","ROCK","ROCKET","ROCKS","ROCKY","ROD","ROGER","ROGERS","ROLAND","ROLE","ROLES","ROLL","ROLLED","ROLLER","ROLLS","ROM","ROMAN","ROME","RON","RONALD","ROOF","ROOM","ROOMS","ROOT","ROOTS","ROPE","ROSA","ROSE","ROSES","ROSS","ROSTER","ROTARY","ROUGE","ROUGH","ROUND","ROUNDS","ROUTE","ROUTER","ROUTES","ROVER","ROW","ROWS","ROY","ROYAL","RPG","RPM","RRP","RSS","RUBBER","RUBY","RUG","RUGBY","RUGS","RULE","RULED","RULES","RULING","RUN","RUNNER","RUNS","RURAL","RUSH","RUSSIA","RUTH","RWANDA","RYAN","SACRED","SAD","SADDAM","SAFARI","SAFE","SAFELY","SAFER","SAFETY","SAGE","SAGEM","SAID","SAIL","SAINT","SAINTS","SAKE","SALAD","SALARY","SALE","SALEM","SALES","SALLY","SALMON","SALON","SALT","SAM","SAMBA","SAME","SAMOA","SAMPLE","SAMUEL","SAN","SAND","SANDRA","SANDY","SANS","SANTA","SANYO","SAO","SAP","SARA","SARAH","SAS","SAT","SATIN","SATURN","SAUCE","SAUDI","SAVAGE","SAVE","SAVED","SAVER","SAVES","SAVING","SAW","SAY","SAYING","SAYS","SBJCT","SCALE","SCALES","SCAN","SCARED","SCARY","SCENE","SCENES","SCENIC","SCHEMA","SCHEME","SCHOOL","SCI","SCOOP","SCOPE","SCORE","SCORED","SCORES","SCOTIA","SCOTT","SCOUT","SCREEN","SCREW","SCRIPT","SCROLL","SCSI","SCUBA","SEA","SEAL","SEALED","SEAN","SEARCH","SEAS","SEASON","SEAT","SEATS","SEC","SECOND","SECRET","SECTOR","SECURE","SEE","SEED","SEEDS","SEEING","SEEK","SEEKER","SEEKS","SEEM","SEEMED","SEEMS","SEEN","SEES","SEGA","SELECT","SELF","SELL","SELLER","SELLS","SEMI","SEN","SENATE","SEND","SENDER","SENDS","SENIOR","SENSE","SENSOR","SENT","SEO","SEP","SEPT","SEQ","SER","SERBIA","SERIAL","SERIES","SERUM","SERVE","SERVED","SERVER","SERVES","SET","SETS","SETTLE","SETUP","SEVEN","SEVERE","SEWING","SEXUAL","SHADE","SHADES","SHADOW","SHAFT","SHAKE","SHALL","SHAME","SHAPE","SHAPED","SHAPES","SHARE","SHARED","SHARES","SHARK","SHARON","SHARP","SHAVED","SHAW","SHE","SHED","SHEEP","SHEER","SHEET","SHEETS","SHELF","SHELL","SHIELD","SHIFT","SHINE","SHIP","SHIPS","SHIRT","SHIRTS","SHOCK","SHOE","SHOES","SHOOT","SHOP","SHOPS","SHORE","SHORT","SHORTS","SHOT","SHOTS","SHOULD","SHOW","SHOWED","SHOWER","SHOWN","SHOWS","SHUT","SIC","SICK","SIDE","SIDES","SIE","SIERRA","SIG","SIGHT","SIGMA","SIGN","SIGNAL","SIGNED","SIGNS","SIGNUP","SILENT","SILK","SILLY","SILVER","SIM","SIMON","SIMPLE","SIMPLY","SIMS","SIN","SINCE","SING","SINGER","SINGH","SINGLE","SINK","SIP","SIR","SISTER","SIT","SITE","SITES","SIX","SIXTH","SIZE","SIZED","SIZES","SKI","SKIING","SKILL","SKILLS","SKIN","SKINS","SKIP","SKIRT","SKIRTS","SKU","SKY","SKYPE","SLAVE","SLEEP","SLEEPS","SLEEVE","SLIDE","SLIDES","SLIGHT","SLIM","SLIP","SLOPE","SLOT","SLOTS","SLOVAK","SLOW","SLOWLY","SMALL","SMART","SMELL","SMILE","SMITH","SMOKE","SMOOTH","SMS","SMTP","SNAKE","SNAP","SNOW","SOA","SOAP","SOC","SOCCER","SOCIAL","SOCKET","SOCKS","SODIUM","SOFA","SOFT","SOIL","SOL","SOLAR","SOLD","SOLE","SOLELY","SOLID","SOLO","SOLVE","SOLVED","SOMA","SOME","SON","SONG","SONGS","SONIC","SONS","SONY","SOON","SORRY","SORT","SORTED","SORTS","SOUGHT","SOUL","SOULS","SOUND","SOUNDS","SOUP","SOURCE","SOUTH","SOVIET","SOX","SPA","SPACE","SPACES","SPAIN","SPAM","SPAN","SPANK","SPARC","SPARE","SPAS","SPEAK","SPEAKS","SPEARS","SPEC","SPECS","SPEECH","SPEED","SPEEDS","SPELL","SPEND","SPENT","SPERM","SPHERE","SPICE","SPIDER","SPIES","SPIN","SPINE","SPIRIT","SPLIT","SPOKE","SPOKEN","SPORT","SPORTS","SPOT","SPOTS","SPOUSE","SPRAY","SPREAD","SPRING","SPRINT","SPY","SQL","SQUAD","SQUARE","SRC","SRI","SSL","STABLE","STACK","STAFF","STAGE","STAGES","STAKE","STAMP","STAMPS","STAN","STAND","STANDS","STAR","STARS","START","STARTS","STAT","STATE","STATED","STATES","STATIC","STATS","STATUS","STAY","STAYED","STAYS","STD","STE","STEADY","STEAL","STEAM","STEEL","STEM","STEP","STEPS","STEREO","STEVE","STEVEN","STICK","STICKS","STICKY","STILL","STOCK","STOCKS","STOLEN","STONE","STONES","STOOD","STOP","STOPS","STORE","STORED","STORES","STORM","STORY","STR","STRAIN","STRAND","STRAP","STREAM","STREET","STRESS","STRICT","STRIKE","STRING","STRIP","STRIPS","STROKE","STRONG","STRUCK","STRUCT","STUART","STUCK","STUD","STUDIO","STUDY","STUFF","STUPID","STYLE","STYLES","STYLUS","SUB","SUBARU","SUBMIT","SUBTLE","SUCH","SUDAN","SUDDEN","SUE","SUFFER","SUGAR","SUIT","SUITE","SUITED","SUITES","SUITS","SUM","SUMMER","SUMMIT","SUN","SUNDAY","SUNNY","SUNSET","SUPER","SUPERB","SUPPLY","SUR","SURE","SURELY","SURF","SURGE","SURREY","SURVEY","SUSAN","SUSE","SUSSEX","SUZUKI","SWAP","SWEDEN","SWEET","SWIFT","SWIM","SWING","SWISS","SWITCH","SWORD","SYDNEY","SYMBOL","SYNC","SYNTAX","SYRIA","SYS","SYSTEM","TAB","TABLE","TABLES","TABLET","TABS","TACKLE","TAG","TAGGED","TAGS","TAHOE","TAIL","TAIWAN","TAKE","TAKEN","TAKES","TAKING","TALE","TALENT","TALES","TALK","TALKED","TALKS","TALL","TAMIL","TAMPA","TAN","TANK","TANKS","TAP","TAPE","TAPES","TAR","TARGET","TARIFF","TASK","TASKS","TASTE","TATTOO","TAUGHT","TAX","TAXES","TAXI","TAYLOR","TBA","TCP","TEA","TEACH","TEAM","TEAMS","TEAR","TEARS","TECH","TECHNO","TED","TEDDY","TEE","TEEN","TEENS","TEETH","TEL","TELL","TELLS","TEMP","TEMPLE","TEN","TENANT","TEND","TENDER","TENNIS","TENT","TERM","TERMS","TERROR","TERRY","TEST","TESTED","TESTS","TEX","TEXAS","TEXT","TEXTS","TFT","TGP","THAI","THAN","THANK","THANKS","THAT","THATS","THE","THEE","THEFT","THEHUN","THEIR","THEM","THEME","THEMES","THEN","THEORY","THERE","THESE","THESIS","THETA","THEY","THICK","THIN","THING","THINGS","THINK","THINKS","THIRD","THIRTY","THIS","THOMAS","THONG","THONGS","THOSE","THOU","THOUGH","THREAD","THREAT","THREE","THROAT","THROW","THROWN","THROWS","THRU","THU","THUMB","THUMBS","THUS","THY","TICKET","TIDE","TIE","TIED","TIER","TIES","TIGER","TIGERS","TIGHT","TIL","TILE","TILES","TILL","TIM","TIMBER","TIME","TIMELY","TIMER","TIMES","TIMING","TIN","TINY","TION","TIONS","TIP","TIPS","TIRE","TIRED","TIRES","TISSUE","TITANS","TITLE","TITLED","TITLES","TITTEN","TMP","TOBAGO","TODAY","TODD","TOE","TOILET","TOKEN","TOKYO","TOLD","TOLL","TOM","TOMATO","TOMMY","TON","TONE","TONER","TONES","TONGUE","TONS","TONY","TOO","TOOK","TOOL","TOOLS","TOOTH","TOP","TOPIC","TOPICS","TOPS","TOTAL","TOTALS","TOUCH","TOUGH","TOUR","TOURS","TOWARD","TOWER","TOWERS","TOWN","TOWNS","TOXIC","TOY","TOYOTA","TOYS","TRACE","TRACK","TRACKS","TRACT","TRACY","TRADE","TRADER","TRADES","TRAIL","TRAILS","TRAIN","TRAINS","TRANCE","TRANS","TRAP","TRASH","TRAUMA","TRAVEL","TRAVIS","TRAY","TREAT","TREATY","TREE","TREES","TREK","TREMBL","TREND","TRENDS","TREO","TRI","TRIAL","TRIALS","TRIBAL","TRIBE","TRIBES","TRICK","TRICKS","TRIED","TRIES","TRIM","TRIO","TRIP","TRIPLE","TRIPS","TRIVIA","TROOPS","TROUT","TROY","TRUCK","TRUCKS","TRUE","TRULY","TRUNK","TRUST","TRUSTS","TRUTH","TRY","TRYING","TUB","TUBE","TUBES","TUCSON","TUE","TULSA","TUMOR","TUNE","TUNER","TUNES","TUNING","TUNNEL","TURBO","TURKEY","TURN","TURNED","TURNER","TURNS","TURTLE","TVS","TWELVE","TWENTY","TWICE","TWIKI","TWIN","TWINS","TWIST","TWO","TYLER","TYPE","TYPES","TYPING","UGANDA","UGLY","ULTRA","ULTRAM","UNA","UNABLE","UNCLE","UND","UNDER","UNDO","UNE","UNI","UNION","UNIONS","UNIQUE","UNIT","UNITED","UNITS","UNITY","UNIV","UNIX","UNLESS","UNLIKE","UNLOCK","UNTIL","UNTO","UNWRAP","UPC","UPDATE","UPLOAD","UPON","UPPER","UPS","UPSET","URBAN","URGE","URGENT","URI","URL","URLS","URW","USA","USAGE","USB","USC","USD","USDA","USE","USED","USEFUL","USER","USERS","USES","USGS","USING","USPS","USR","USUAL","UTAH","UTC","UTILS","VACUUM","VAL","VALID","VALIUM","VALLEY","VALUE","VALUED","VALUES","VALVE","VALVES","VAN","VAR","VARIED","VARIES","VARY","VAST","VAT","VAULT","VCR","VECTOR","VEGAS","VELVET","VENDOR","VENICE","VENUE","VENUES","VER","VERBAL","VERDE","VERIFY","VERNON","VERSE","VERSUS","VERTEX","VERY","VESSEL","VHS","VIA","VIC","VICE","VICTIM","VICTOR","VID","VIDEO","VIDEOS","VIDS","VIENNA","VIEW","VIEWED","VIEWER","VIEWS","VII","VIII","VIKING","VILLA","VILLAS","VINYL","VIOLIN","VIP","VIRAL","VIRGIN","VIRTUE","VIRUS","VISA","VISION","VISIT","VISITS","VISTA","VISUAL","VITAL","VOCAL","VOCALS","VOICE","VOICES","VOID","VOIP","VOL","VOLT","VOLUME","VOLVO","VON","VOTE","VOTED","VOTERS","VOTES","VOTING","VOYUER","VPN","VSNET","WAGE","WAGES","WAGNER","WAGON","WAIT","WAIVER","WAKE","WAL","WALES","WALK","WALKED","WALKER","WALKS","WALL","WALLET","WALLS","WALNUT","WALT","WALTER","WAN","WANNA","WANT","WANTED","WANTS","WAR","WARD","WARE","WARM","WARNED","WARNER","WARREN","WARS","WAS","WASH","WASHER","WASTE","WATCH","WATER","WATERS","WATSON","WATT","WATTS","WAV","WAVE","WAVES","WAX","WAY","WAYNE","WAYS","WEAK","WEALTH","WEAPON","WEAR","WEB","WEBCAM","WEBLOG","WED","WEED","WEEK","WEEKLY","WEEKS","WEIGHT","WEIRD","WELL","WELLS","WELSH","WENDY","WENT","WERE","WESLEY","WEST","WET","WHALE","WHAT","WHATS","WHEAT","WHEEL","WHEELS","WHEN","WHERE","WHICH","WHILE","WHILST","WHITE","WHO","WHOLE","WHOM","WHOSE","WHY","WICKED","WIDE","WIDELY","WIDER","WIDTH","WIFE","WIFI","WIKI","WILD","WILEY","WILL","WILLOW","WILSON","WIN","WIND","WINDOW","WINDS","WINE","WINES","WING","WINGS","WINNER","WINS","WINTER","WIRE","WIRED","WIRES","WIRING","WISDOM","WISE","WISH","WISHES","WIT","WITCH","WITH","WITHIN","WIVES","WIZARD","WMA","WOLF","WOMAN","WOMEN","WOMENS","WON","WONDER","WOOD","WOODEN","WOODS","WOOL","WORD","WORDS","WORK","WORKED","WORKER","WORKS","WORLD","WORLDS","WORM","WORN","WORRY","WORSE","WORST","WORTH","WORTHY","WOULD","WOUND","WOW","WRAP","WRIGHT","WRIST","WRITE","WRITER","WRITES","WRONG","WROTE","WTO","WWW","XANAX","XBOX","XEROX","XHTML","XML","YACHT","YAHOO","YALE","YAMAHA","YANG","YARD","YARDS","YARN","YEA","YEAH","YEAR","YEARLY","YEARS","YEAST","YELLOW","YEMEN","YEN","YES","YET","YIELD","YIELDS","YOGA","YORK","YOU","YOUNG","YOUR","YOURS","YOUTH","YRS","YUKON","ZAMBIA","ZDNET","ZEN","ZERO","ZINC","ZIP","ZOLOFT","ZONE","ZONES","ZONING","ZOO","ZOOM","ZOPE","ZSHOPS","ZUM","ZUS"]);
+WORDS.add("REACH");
 var VOWELS = { A: 1, E: 1, I: 1, O: 1, U: 1 };
 var KEYBOARD_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 var SCRABBLE_VALUES = { A: 1, B: 3, C: 3, D: 2, E: 1, F: 4, G: 2, H: 4, I: 1, J: 8, K: 5, L: 1, M: 3, N: 1, O: 1, P: 3, Q: 10, R: 1, S: 1, T: 1, U: 1, V: 4, W: 4, X: 8, Y: 4, Z: 10 };
@@ -388,7 +408,8 @@ var COOLDOWN_MS = 10 * 60 * 1000;
 
 var TIER_COLORS = {
   Trash: "#94a3b8", Common: "#a1a1aa", Uncommon: "#22c55e",
-  Rare: "#3b82f6", Epic: "#a855f7", Legendary: "#f59e0b", Mythic: "#f43f5e"
+  Rare: "#3b82f6", Epic: "#a855f7", Legendary: "#f59e0b", Mythic: "#f43f5e",
+  Divine: "#ec4899", Cosmic: "#8b5cf6"
 };
 var RARITY_COLORS = {
   common: "#a1a1aa", uncommon: "#22c55e", rare: "#3b82f6",
@@ -491,7 +512,14 @@ function revealTile(el, finalLetter, delay) {
   return new Promise(function (resolve) {
     setTimeout(function () {
       el.classList.add("rolling");
+      var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      var cycle = 0;
+      var cycleTimer = setInterval(function () {
+        el.textContent = alphabet[cycle % alphabet.length];
+        cycle++;
+      }, 75);
       setTimeout(function () {
+        clearInterval(cycleTimer);
         el.textContent = finalLetter;
         el.classList.remove("rolling");
         el.classList.add("settled");
@@ -562,7 +590,8 @@ function findAnagramMatches(letters) {
       var candidates = ANAGRAM_WORDS[picked.slice().sort().join("")] || [];
       for (var c = 0; c < candidates.length; c++) {
         var word = candidates[c];
-        if (word !== picked.join("")) return [{ word: word, len: len, positions: positions }];
+        var contiguous = positions[len - 1] - positions[0] === len - 1;
+        if (word !== picked.join("") || !contiguous) return [{ word: word, len: len, positions: positions }];
       }
     }
   }
@@ -708,8 +737,33 @@ function applyProbabilityEP(badges) {
 
 function formatChance(probability) {
   var percent = probability * 100;
-  if (percent >= 1) return percent.toFixed(1) + "% chance";
-  return "1 in " + Math.max(2, Math.round(1 / probability)).toLocaleString();
+  var precision = percent < 0.1 ? 3 : percent < 1 ? 2 : 1;
+  return percent.toFixed(precision) + "% chance";
+}
+
+function tierForEP(ep) {
+  if (ep >= 10000) return "Cosmic";
+  if (ep >= 5000) return "Divine";
+  if (ep >= 3000) return "Mythic";
+  if (ep >= 1500) return "Legendary";
+  if (ep >= 500) return "Epic";
+  if (ep >= 150) return "Rare";
+  if (ep >= 50) return "Uncommon";
+  if (ep >= 10) return "Common";
+  return "Trash";
+}
+
+function colorForEP(ep) {
+  return TIER_COLORS[tierForEP(ep)] || TIER_COLORS.Trash;
+}
+
+function topPercentForEP(ep, leaderboard) {
+  var scores = (leaderboard || []).map(function (player) { return Number(player.ep) || 0; });
+  scores.push(ep);
+  scores.sort(function (a, b) { return b - a; });
+  var rank = scores.indexOf(ep) + 1;
+  var percent = Math.ceil((rank / scores.length) * 100);
+  return Math.max(1, Math.min(100, percent));
 }
 
 function computeRoll(letters) {
@@ -739,8 +793,10 @@ function computeRoll(letters) {
   }
 
   var anagrams = findAnagramMatches(letters);
+  var primaryWord = words.length ? { word: words[0].word, len: words[0].len, ordered: true, positions: rangeArr(words[0].start, words[0].len) } : null;
   if (anagrams.length) {
     var anagram = anagrams[0];
+    if (!primaryWord || anagram.len > primaryWord.len) primaryWord = { word: anagram.word, len: anagram.len, ordered: false, positions: anagram.positions };
     badges.push({ family: "anagram", name: anagram.len >= 5 ? "Scrambled Long Word" : "Scrambled Word", ep: anagram.len >= 5 ? 180 : 35, desc: 'Rearranges into "' + anagram.word + '"', rarity: anagram.len >= 5 ? "epic" : "uncommon", positions: anagram.positions, wordLength: anagram.len });
   }
 
@@ -850,14 +906,16 @@ function computeRoll(letters) {
   for (var b = 0; b < badges.length; b++) totalEP += badges[b].ep;
 
   var tier = "Trash";
-  if (totalEP >= 3000) tier = "Mythic";
+  if (totalEP >= 10000) tier = "Cosmic";
+  else if (totalEP >= 5000) tier = "Divine";
+  else if (totalEP >= 3000) tier = "Mythic";
   else if (totalEP >= 1500) tier = "Legendary";
   else if (totalEP >= 500) tier = "Epic";
   else if (totalEP >= 150) tier = "Rare";
   else if (totalEP >= 50) tier = "Uncommon";
   else if (totalEP >= 10) tier = "Common";
 
-  return { badges: badges, totalEP: totalEP, tier: tier, supporting: supporting };
+  return { badges: badges, totalEP: totalEP, tier: tier, supporting: supporting, primaryWord: primaryWord };
 }
 
 function pickHighlightBadge(badges) {
@@ -876,7 +934,7 @@ var BADGE_ICONS = {
 
 /* ================= rendering ================= */
 function animateCount(el, to, duration) {
-  var start = 0, startTime = null;
+  var start = Number(el.textContent) || 0, startTime = null;
   function step(ts) {
     if (!startTime) startTime = ts;
     var progress = Math.min(1, (ts - startTime) / duration);
@@ -888,27 +946,53 @@ function animateCount(el, to, duration) {
   requestAnimationFrame(step);
 }
 
-function renderResult(letters, res) {
+function playBadgeTone(index) {
+  try {
+    var AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    var context = playBadgeTone._context || (playBadgeTone._context = new AudioContext());
+    var oscillator = context.createOscillator();
+    var gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = 280 + index * 55;
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.07, context.currentTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.24);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.25);
+  } catch (e) {}
+}
+
+async function renderResult(letters, res, leaderboard) {
   var panel = document.getElementById("result");
   var tierColor = TIER_COLORS[res.tier] || TIER_COLORS.Trash;
   panel.style.setProperty("--tier-color", tierColor);
 
   document.getElementById("resultTitle").textContent = letters.join("");
 
-  var tag = document.getElementById("rarityTag");
-  tag.textContent = res.tier;
-  tag.className = "tier-badge" + ((res.tier === "Legendary" || res.tier === "Mythic") ? " shimmer-tag" : "");
+  var rollRarity = document.getElementById("rollRarity");
+  var topPercent = topPercentForEP(res.totalEP, leaderboard);
+  rollRarity.textContent = res.tier + " · Top " + topPercent + "%";
+  rollRarity.style.color = tierColor;
+  rollRarity.style.background = "color-mix(in srgb, " + tierColor + " 14%, transparent)";
+  rollRarity.className = "roll-rarity show";
 
-  var sortedBadges = res.badges.slice().sort(function (a, b) { return b.ep - a.ep; });
+  var sortedBadges = res.badges.slice().sort(function (a, b) { return a.ep - b.ep; });
   var list = document.getElementById("badgeList");
   list.innerHTML = "";
+  var totalEl = document.getElementById("totalEp");
+  totalEl.textContent = "0";
+  panel.classList.add("show");
+  var runningEP = 0;
   for (var i = 0; i < sortedBadges.length; i++) {
     var b = sortedBadges[i];
-    var color = RARITY_COLORS[b.rarity] || "var(--border)";
+    var color = colorForEP(b.ep);
     var li = document.createElement("li");
-    li.className = "badge-item rarity-" + b.rarity;
+    li.className = "badge-item rarity-" + tierForEP(b.ep).toLowerCase();
     li.style.setProperty("--badge-color", color);
-    li.style.setProperty("--badge-delay", ((sortedBadges.length - 1 - i) * 180) + "ms");
+    li.style.setProperty("--badge-delay", "0ms");
     var icon = BADGE_ICONS[b.family] || "✨";
     var slots = "<div class='badge-slots'>";
     for (var slot = 0; slot < letters.length; slot++) {
@@ -919,27 +1003,15 @@ function renderResult(letters, res) {
     li.innerHTML = "<div><span class='badge-name'><span class='badge-icon' aria-hidden='true'>" + icon + "</span>" + b.name + "</span>" +
       "<span class='badge-desc'>" + b.desc + "</span>" + slots + "</div>" +
       "<span class='badge-ep'>+" + b.ep + " EP</span>";
-    list.appendChild(li);
+    list.insertBefore(li, list.firstChild);
+    runningEP += b.ep;
+    playBadgeTone(i);
+    animateCount(totalEl, runningEP, 320);
+    await new Promise(function (resolve) { setTimeout(resolve, 420 + i * 160); });
   }
 
   var sup = document.getElementById("supporting");
   sup.textContent = res.supporting.length ? ("Also spotted: " + res.supporting.join(", ")) : "";
-
-  var totalEl = document.getElementById("totalEp");
-  animateCount(totalEl, res.totalEP, 700);
-
-  panel.classList.add("show");
-
-  var top = pickHighlightBadge(res.badges);
-  if (top && top.positions && top.positions.length && top.ep > 1) {
-    var glowColor = RARITY_COLORS[top.rarity] || tierColor;
-    top.positions.forEach(function (idx) {
-      var el = document.getElementById("tile" + idx);
-      if (!el) return;
-      el.style.setProperty("--tier-color", glowColor);
-      el.classList.add("tile-highlight");
-    });
-  }
 
   if (res.tier === "Epic") spawnConfetti([TIER_COLORS.Epic, TIER_COLORS.Rare, "#ffffff"], 16);
   else if (res.tier === "Legendary") spawnConfetti([TIER_COLORS.Legendary, TIER_COLORS.Epic, "#ffffff"], 26);
@@ -965,11 +1037,11 @@ var LB = {
     if (!res.ok) throw new Error("Failed to load leaderboard");
     return await res.json();
   },
-  submit: async function (name, ep) {
+  submit: async function (name, word, ep) {
     await fetch("/api/roll", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name, ep: ep })
+      body: JSON.stringify({ name: name, word: word, ep: ep })
     });
   }
 };
@@ -994,16 +1066,16 @@ async function loadLeaderboard() {
     body.innerHTML = "<div class='lb-empty'>No rolls yet — be the first on the board.</div>";
     return;
   }
-  data.sort(function (a, b) { return (Number(b.bestEP) || 0) - (Number(a.bestEP) || 0) || (Number(b.totalEP) || 0) - (Number(a.totalEP) || 0); });
+  data.sort(function (a, b) { return (Number(b.ep) || 0) - (Number(a.ep) || 0); });
   body.innerHTML = data.map(function (p, i) {
     var rankDisplay = MEDALS[i] || (i + 1);
     var mine = p.name.toLowerCase() === myName && myName !== "";
+    var wordColor = colorForEP(Number(p.ep) || 0);
     return "<div class='lb-row lb-body-row" + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms'>" +
       "<span class='lb-rank'>" + rankDisplay + "</span>" +
+      "<span class='lb-word' style='color:" + wordColor + "'>" + escapeHtml(p.word) + "</span>" +
       "<span class='lb-name'>" + escapeHtml(p.name) + "</span>" +
-      "<span class='lb-ep'>" + p.bestEP + "</span>" +
-      "<span class='lb-rolls'>" + p.rolls + "</span>" +
-      "<span class='lb-best'>" + p.totalEP + "</span>" +
+      "<span class='lb-ep' style='color:" + wordColor + "'>" + p.ep + "</span>" +
       "</div>";
   }).join("");
 }
@@ -1069,6 +1141,9 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
   }
   var btn = document.getElementById("rollBtn");
   btn.disabled = true;
+  btn.classList.add("is-rolling");
+  document.getElementById("rollRarity").classList.remove("show");
+  document.getElementById("rollRarity").textContent = "";
   document.getElementById("result").classList.remove("show");
   resetTiles();
 
@@ -1080,18 +1155,21 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
   }
 
   var res = computeRoll(letters);
-  renderResult(letters, res);
+  var leaderboard = [];
+  try { leaderboard = await LB.load(); } catch (e) {}
+  await renderResult(letters, res, leaderboard);
 
   var unlimited = localStorage.getItem("sixroll_unlimited") === "1";
   if (!unlimited) {
     localStorage.setItem("sixroll_next_roll", String(Date.now() + COOLDOWN_MS));
   }
 
-  try { await LB.submit(name, res.totalEP); } catch (e) {}
+  try { await LB.submit(name, letters.join(""), res.totalEP); } catch (e) {}
 
   await loadLeaderboard();
   syncCooldownUI();
   tickCooldownText();
+  btn.classList.remove("is-rolling");
   rollInProgress = false;
 });
 
@@ -1104,8 +1182,8 @@ loadLeaderboard();
 </html>
 `;
 
-const KV_KEY = "players";
-const MAX_PLAYERS = 200;
+const KV_KEY = "rolls";
+const MAX_ROLLS = 500;
 
 export default {
   async fetch(request, env) {
@@ -1116,8 +1194,8 @@ export default {
     }
 
     if (url.pathname === "/api/leaderboard" && request.method === "GET") {
-      const players = await getPlayers(env);
-      const top = players.slice().sort((a, b) => (Number(b.bestEP) || 0) - (Number(a.bestEP) || 0) || (Number(b.totalEP) || 0) - (Number(a.totalEP) || 0)).slice(0, 20);
+      const rolls = await getRolls(env);
+      const top = rolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0)).slice(0, 20);
       return json(top);
     }
 
@@ -1129,26 +1207,16 @@ export default {
         return json({ error: "Invalid JSON" }, 400);
       }
       const name = String(body.name || "").trim().slice(0, 20);
+      const word = String(body.word || "").trim().toUpperCase().slice(0, 6);
       const ep = Number(body.ep);
-      if (!name || !Number.isFinite(ep) || ep < 0) {
-        return json({ error: "name and non-negative numeric ep required" }, 400);
+      if (!name || !/^[A-Z]{6}$/.test(word) || !Number.isFinite(ep) || ep < 0) {
+        return json({ error: "name, six-letter word, and non-negative numeric ep required" }, 400);
       }
 
-      const players = await getPlayers(env);
-      const key = name.toLowerCase();
-      let player = players.find((p) => p.name.toLowerCase() === key);
-      if (!player) {
-        player = { name, totalEP: 0, rolls: 0, bestEP: 0, ts: Date.now() };
-        players.push(player);
-      }
-      player.totalEP += ep;
-      player.rolls += 1;
-      player.bestEP = Math.max(player.bestEP, ep);
-      player.ts = Date.now();
-
-      players.sort((a, b) => (Number(b.bestEP) || 0) - (Number(a.bestEP) || 0) || (Number(b.totalEP) || 0) - (Number(a.totalEP) || 0));
-      const trimmed = players.slice(0, MAX_PLAYERS);
-      await env.PLAYERS.put(KV_KEY, JSON.stringify(trimmed));
+      const rolls = await getRolls(env);
+      rolls.push({ word, name, ep, ts: Date.now() });
+      rolls.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
+      await env.PLAYERS.put(KV_KEY, JSON.stringify(rolls.slice(0, MAX_ROLLS)));
 
       return json({ ok: true });
     }
@@ -1162,11 +1230,12 @@ export default {
   },
 };
 
-async function getPlayers(env) {
+async function getRolls(env) {
   const raw = await env.PLAYERS.get(KV_KEY);
   if (!raw) return [];
   try {
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data.filter((roll) => roll && typeof roll.word === "string" && typeof roll.name === "string" && Number.isFinite(Number(roll.ep))) : [];
   } catch {
     return [];
   }
