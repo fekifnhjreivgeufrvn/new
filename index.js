@@ -609,7 +609,12 @@ function isStrictlyDescending(letters) {
 }
 
 var ROLL_SPACE = Math.pow(26, 6);
-var EP_RARITY_SCALE = 40;
+// EP now follows a power curve on rarity (1/probability) instead of a flat log scale,
+// so common badges stay modest while the rarest possible pulls spike dramatically.
+// Calibrated so a ~1%-chance badge lands around 2,000 EP and the single rarest
+// possible badge (~1 in 530 million) lands around 160,000,000 EP.
+var EP_CURVE_BASE = 70;
+var EP_CURVE_EXPONENT = 0.73;
 var probabilityCache = {};
 
 function choose(n, k) {
@@ -730,7 +735,13 @@ function applyProbabilityEP(badges) {
     var badge = badges[i];
     var probability = Math.max(1 / ROLL_SPACE, Math.min(1, badgeProbability(badge)));
     badge.chance = probability;
-    badge.ep = Math.max(1, Math.round(EP_RARITY_SCALE * Math.log10(1 / probability)));
+    if (probability >= 0.999) {
+      // Guaranteed-or-near-guaranteed badges (e.g. "Six Letters") stay trivial.
+      badge.ep = 1;
+    } else {
+      var rarity = 1 / probability;
+      badge.ep = Math.max(1, Math.round(EP_CURVE_BASE * Math.pow(rarity, EP_CURVE_EXPONENT)));
+    }
     badge.desc = badge.desc + " (" + formatChance(probability) + ")";
   }
 }
@@ -742,14 +753,14 @@ function formatChance(probability) {
 }
 
 function tierForEP(ep) {
-  if (ep >= 10000) return "Cosmic";
-  if (ep >= 5000) return "Divine";
-  if (ep >= 3000) return "Mythic";
-  if (ep >= 1500) return "Legendary";
-  if (ep >= 500) return "Epic";
-  if (ep >= 150) return "Rare";
-  if (ep >= 50) return "Uncommon";
-  if (ep >= 10) return "Common";
+  if (ep >= 80000000) return "Cosmic";
+  if (ep >= 20000000) return "Divine";
+  if (ep >= 2000000) return "Mythic";
+  if (ep >= 250000) return "Legendary";
+  if (ep >= 50000) return "Epic";
+  if (ep >= 10000) return "Rare";
+  if (ep >= 2000) return "Uncommon";
+  if (ep >= 300) return "Common";
   return "Trash";
 }
 
@@ -906,14 +917,14 @@ function computeRoll(letters) {
   for (var b = 0; b < badges.length; b++) totalEP += badges[b].ep;
 
   var tier = "Trash";
-  if (totalEP >= 10000) tier = "Cosmic";
-  else if (totalEP >= 5000) tier = "Divine";
-  else if (totalEP >= 3000) tier = "Mythic";
-  else if (totalEP >= 1500) tier = "Legendary";
-  else if (totalEP >= 500) tier = "Epic";
-  else if (totalEP >= 150) tier = "Rare";
-  else if (totalEP >= 50) tier = "Uncommon";
-  else if (totalEP >= 10) tier = "Common";
+  if (totalEP >= 80000000) tier = "Cosmic";
+  else if (totalEP >= 20000000) tier = "Divine";
+  else if (totalEP >= 2000000) tier = "Mythic";
+  else if (totalEP >= 250000) tier = "Legendary";
+  else if (totalEP >= 50000) tier = "Epic";
+  else if (totalEP >= 10000) tier = "Rare";
+  else if (totalEP >= 2000) tier = "Uncommon";
+  else if (totalEP >= 300) tier = "Common";
 
   return { badges: badges, totalEP: totalEP, tier: tier, supporting: supporting, primaryWord: primaryWord };
 }
