@@ -36,6 +36,11 @@ const HTML_PAGE = `<!DOCTYPE html>
     --accent: #6d5ef7;
     --accent-2: #9b7bff;
     --accent-contrast: #ffffff;
+    --page-bg: #fbfbfc;
+    --header-bg: rgba(255,255,255,.96);
+    --card-bg: #ffffff;
+    --soft-border: #e6e7eb;
+    --placeholder: #c7c7ca;
     --tier-trash: #94a3b8;
     --tier-common: #a1a1aa;
     --tier-uncommon: #22c55e;
@@ -58,13 +63,18 @@ const HTML_PAGE = `<!DOCTYPE html>
     --accent: #7c6bff;
     --accent-2: #a78bff;
     --accent-contrast: #0a0a12;
+    --page-bg: #0a0a12;
+    --header-bg: rgba(10,10,18,.96);
+    --card-bg: #13131f;
+    --soft-border: #34344c;
+    --placeholder: #777791;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
     font-family: "Inter", system-ui, -apple-system, sans-serif;
-    background: #fbfbfc;
+    background: var(--page-bg);
     color: var(--text);
     min-height: 100vh;
     transition: background .3s ease, color .3s ease;
@@ -87,8 +97,8 @@ const HTML_PAGE = `<!DOCTYPE html>
   .site-header {
     position: sticky; top: 0; z-index: 30;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 5px 12px; border-bottom: 1px solid #e9e9ed;
-    background: rgba(255,255,255,.96);
+    padding: 5px 12px; border-bottom: 1px solid var(--border);
+    background: var(--header-bg);
     backdrop-filter: blur(10px);
   }
   .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: .78rem; letter-spacing: .08em; }
@@ -117,11 +127,11 @@ const HTML_PAGE = `<!DOCTYPE html>
     animation: cardIn .5s cubic-bezier(.2,.8,.2,1) both;
   }
   @keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  .hero-tag { text-align: center; color: #68738a; font-size: .78rem; line-height: 1.55; margin: 0 0 18px; }
+  .hero-tag { text-align: center; color: var(--text-2); font-size: .78rem; line-height: 1.55; margin: 0 0 18px; }
 
   .name-field {
     display: flex; align-items: center; gap: 10px;
-    background: transparent; border: 0; border-bottom: 1px solid #e6e7eb; border-radius: 0;
+    background: transparent; border: 0; border-bottom: 1px solid var(--soft-border); border-radius: 0;
     padding: 7px 2px; margin: 0 auto 20px; max-width: 270px; transition: border-color .2s ease, box-shadow .2s ease;
   }
   .name-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
@@ -135,7 +145,7 @@ const HTML_PAGE = `<!DOCTYPE html>
     width: 38px; height: 48px;
     background: transparent; border: 0; border-radius: 0;
     display: flex; align-items: center; justify-content: center;
-    font-family: "Space Mono", monospace; font-weight: 700; font-size: 2.15rem; color: #c7c7ca;
+    font-family: "Space Mono", monospace; font-weight: 700; font-size: 2.15rem; color: var(--placeholder);
     transform-style: preserve-3d;
     transition: border-color .35s ease, box-shadow .35s ease, background .35s ease;
   }
@@ -186,8 +196,8 @@ const HTML_PAGE = `<!DOCTYPE html>
 
   /* ---------- result ---------- */
   .result-card {
-    position: relative; margin-top: 26px; border-radius: 6px; border: 1px solid #e4e5e8;
-    background: #fff; padding: 16px; opacity: 0; transform: translateY(14px) scale(.98);
+    position: relative; margin-top: 26px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--card-bg); padding: 16px; opacity: 0; transform: translateY(14px) scale(.98);
     pointer-events: none; transition: opacity .4s ease, transform .4s cubic-bezier(.2,.8,.2,1);
     overflow: hidden;
   }
@@ -197,7 +207,8 @@ const HTML_PAGE = `<!DOCTYPE html>
     background: radial-gradient(circle, var(--tier-color, var(--accent)) 0%, transparent 70%);
     opacity: .28; filter: blur(14px); pointer-events: none;
   }
-  .result-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; position: relative; z-index: 1; flex-wrap: wrap; }
+  .result-header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px 12px; margin-bottom: 18px; position: relative; z-index: 1; }
+  .result-total { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 6px; }
   .result-letters { font-family: "Space Mono", monospace; font-weight: 700; font-size: 1.55rem; letter-spacing: .1em; }
   .tier-badge {
     font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
@@ -216,19 +227,22 @@ const HTML_PAGE = `<!DOCTYPE html>
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--badge-color, var(--border));
     border-radius: 10px; padding: 10px 14px;
-    opacity: 0; transform: translateX(-8px); animation: badgeIn .4s ease forwards;
+    opacity: 0; transform: translateX(-8px); animation: badgeIn .55s ease forwards;
   }
   @keyframes badgeIn { to { opacity: 1; transform: translateX(0); } }
   .badge-name { font-weight: 700; font-size: .9rem; }
+  .badge-icon { display: inline-block; width: 1.35em; margin-right: 4px; }
   .badge-desc { display: block; color: var(--text-3); font-size: .76rem; margin-top: 2px; }
   .badge-ep { font-family: "Space Mono", monospace; font-weight: 700; white-space: nowrap; color: var(--badge-color, var(--text)); }
+  .badge-slots { display: flex; gap: 3px; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border); }
+  .badge-slot { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; color: var(--text-3); background: var(--surface); font: 700 .68rem "Space Mono", monospace; }
+  .badge-slot.active { color: var(--text); border-color: var(--badge-color); background: color-mix(in srgb, var(--badge-color) 18%, var(--surface)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--badge-color) 25%, transparent); }
 
   .supporting { font-size: .78rem; color: var(--text-3); margin-bottom: 14px; position: relative; z-index: 1; }
   .result-footer {
     display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
     position: relative; z-index: 1; padding-top: 14px; border-top: 1px dashed var(--border);
   }
-  .total-ep { display: flex; align-items: baseline; gap: 6px; }
   .total-ep-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); }
   .total-ep-value { font-family: "Space Mono", monospace; font-weight: 700; font-size: 1.6rem; color: var(--tier-color); }
   .total-ep-unit { font-size: .78rem; color: var(--text-3); }
@@ -311,17 +325,16 @@ const HTML_PAGE = `<!DOCTYPE html>
     <section class="result-card" id="result">
       <div class="result-glow" id="resultGlow" aria-hidden="true"></div>
       <div class="result-header">
+        <div class="result-total total-ep">
+          <span class="total-ep-label">Total EP</span>
+          <span class="total-ep-value mono" id="totalEp">0</span>
+        </div>
         <div class="result-letters" id="resultTitle"></div>
         <div class="tier-badge" id="rarityTag"></div>
       </div>
       <ul class="badge-list" id="badgeList"></ul>
       <div class="supporting" id="supporting"></div>
       <div class="result-footer">
-        <div class="total-ep">
-          <span class="total-ep-label">Total</span>
-          <span class="total-ep-value mono" id="totalEp">0</span>
-          <span class="total-ep-unit">EP</span>
-        </div>
         <button class="share-btn" id="shareBtn" type="button">Copy result</button>
       </div>
     </section>
