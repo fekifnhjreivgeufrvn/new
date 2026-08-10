@@ -70,6 +70,11 @@ const HTML_PAGE = `<!DOCTYPE html>
     --placeholder: #777791;
     color-scheme: dark;
   }
+  html[data-theme="dark"] body { background: #0a0a12; color: #f1f1f8; }
+  html[data-theme="dark"] .result-card { background: #13131f; border-color: #262638; }
+  html[data-theme="dark"] .site-header { background: rgba(10,10,18,.96); border-color: #262638; }
+  html[data-theme="dark"] .name-field { border-color: #34344c; }
+  html[data-theme="dark"] .badge-item, html[data-theme="dark"] .badge-slot { background: #1a1a2c; border-color: #34344c; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
@@ -343,7 +348,7 @@ const HTML_PAGE = `<!DOCTYPE html>
       <h2><span>🏆</span> Leaderboard</h2>
       <div class="lb-table">
         <div class="lb-row lb-head">
-          <span>#</span><span>Name</span><span>Total EP</span><span>Rolls</span><span>Best</span>
+          <span>#</span><span>Name</span><span>Best EP</span><span>Rolls</span><span>Total</span>
         </div>
         <div id="lbBody"></div>
       </div>
@@ -477,7 +482,7 @@ function revealTile(el, finalLetter, delay) {
   return new Promise(function (resolve) {
     setTimeout(function () {
       el.classList.add("rolling");
-      var spins = 10, count = 0;
+      var spins = 8, count = 0;
       var iv = setInterval(function () {
         el.textContent = randLetter();
         count++;
@@ -488,7 +493,7 @@ function revealTile(el, finalLetter, delay) {
           el.classList.add("settled");
           resolve();
         }
-      }, 75);
+      }, 60);
     }, delay);
   });
 }
@@ -571,6 +576,139 @@ function isStrictlyDescending(letters) {
   return true;
 }
 
+var ROLL_SPACE = Math.pow(26, 6);
+var EP_RARITY_SCALE = 40;
+var probabilityCache = {};
+
+function choose(n, k) {
+  if (k < 0 || k > n) return 0;
+  k = Math.min(k, n - k);
+  var result = 1;
+  for (var i = 1; i <= k; i++) result = result * (n - k + i) / i;
+  return result;
+}
+
+function binomialProbability(n, k, successes, trials) {
+  return choose(n, k) * Math.pow(successes / trials, k) * Math.pow((trials - successes) / trials, n - k);
+}
+
+function boundedRepeatProbability(maxCount) {
+  var key = "repeat:" + maxCount;
+  if (probabilityCache[key]) return probabilityCache[key];
+  var dp = [1, 0, 0, 0, 0, 0, 0];
+  for (var letter = 0; letter < 26; letter++) {
+    var next = [0, 0, 0, 0, 0, 0, 0];
+    for (var used = 0; used <= 6; used++) {
+      for (var add = 0; add <= maxCount && used + add <= 6; add++) {
+        next[used + add] += dp[used] / factorial(add);
+      }
+    }
+    dp = next;
+  }
+  var ways = dp[6] * factorial(6);
+  probabilityCache[key] = ways / ROLL_SPACE;
+  return probabilityCache[key];
+}
+
+function factorial(n) {
+  var result = 1;
+  for (var i = 2; i <= n; i++) result *= i;
+  return result;
+}
+
+function exactRepeatProbability(count) {
+  return boundedRepeatProbability(count) - boundedRepeatProbability(count - 1);
+}
+
+function rangeProbability(minRange, maxRange) {
+  var count = 0;
+  for (var distance = minRange; distance <= maxRange; distance++) {
+    var intervalWays = distance === 0 ? 1 : Math.pow(distance + 1, 6) - 2 * Math.pow(distance, 6) + Math.pow(Math.max(0, distance - 1), 6);
+    count += (26 - distance) * intervalWays;
+  }
+  return count / ROLL_SPACE;
+}
+
+function scrabbleSumProbability(test) {
+  var key = "scrabble:" + test;
+  if (probabilityCache[key]) return probabilityCache[key];
+  var dp = [1];
+  for (var letter = 0; letter < 6; letter++) {
+    var next = [];
+    for (var sum = 0; sum < dp.length; sum++) {
+      if (!dp[sum]) continue;
+      for (var charCode = 65; charCode <= 90; charCode++) {
+        var value = SCRABBLE_VALUES[String.fromCharCode(charCode)];
+        next[sum + value] = (next[sum + value] || 0) + dp[sum];
+      }
+    }
+    dp = next;
+  }
+  var matching = 0;
+  for (var total = 0; total < dp.length; total++) if (dp[total] && test(total)) matching += dp[total];
+  probabilityCache[key] = matching / ROLL_SPACE;
+  return probabilityCache[key];
+}
+
+function badgeProbability(badge) {
+  var name = badge.name;
+  if (name === "Six Letters") return 1;
+  if (name === "Rainbow") return (26 * 25 * 24 * 23 * 22 * 21) / ROLL_SPACE;
+  if (name === "Double Trouble") return choose(26, 2) * choose(24, 2) * factorial(6) / (4 * ROLL_SPACE);
+  if (name === "Rising Star" || name === "Falling Star") return choose(26, 6) / ROLL_SPACE;
+  if (name === "Bargain Bin") return scrabbleSumProbability(function (sum) { return sum <= 8; });
+  if (name === "High Roller") return scrabbleSumProbability(function (sum) { return sum >= 25; });
+  if (name === "Triple Q/X/Z") return 1 - Math.pow(23 / 26, 6);
+  if (name === "Rare Haul") return 1 - binomialProbability(6, 0, 7, 26) - binomialProbability(6, 1, 7, 26) - binomialProbability(6, 2, 7, 26);
+  if (name === "All Vowels") return Math.pow(5 / 26, 6);
+  if (name === "No Vowels") return Math.pow(21 / 26, 6);
+  if (name === "Vowel Heavy") return binomialProbability(6, 4, 5, 26) + binomialProbability(6, 5, 5, 26);
+  if (name === "Vowel Light") return binomialProbability(6, 1, 5, 26) + binomialProbability(6, 2, 5, 26);
+  if (name === "Bookend Vowels") return Math.pow(5 / 26, 2);
+  if (name === "Sandwich") return Math.pow(5 / 26, 2) * Math.pow(21 / 26, 4);
+  if (name === "Center Match") return Math.pow(5 / 26, 2) + Math.pow(21 / 26, 2);
+  if (name === "Diphthong") return 1 - (Math.pow(21, 6) + 5 * Math.pow(21, 5) + 10 * Math.pow(21, 4) + 10 * Math.pow(21, 3) + 5 * Math.pow(21, 2) + 1 * 21) / ROLL_SPACE;
+  if (name === "Roman Numeral") return Math.pow(7 / 26, 6);
+  if (name === "Symmetrical Shapes") return Math.pow(9 / 26, 6);
+  if (name === "Full Spectrum") return rangeProbability(20, 25);
+  if (name === "Tight Cluster") return rangeProbability(0, 5);
+  if (name === "Pair") return exactRepeatProbability(2);
+  if (name === "Triple") return exactRepeatProbability(3);
+  if (name === "Quadruple") return exactRepeatProbability(4);
+  if (name === "Quintuple") return exactRepeatProbability(5);
+  if (name === "Sextuple") return exactRepeatProbability(6);
+  if (name === "Perfect Palindrome") return Math.pow(26, 3) / ROLL_SPACE;
+  if (name === "Mirror Bookends") return 1 / 26;
+  if (name === "Twin Core") return 1 / 26;
+  if (name === "Double Word Score") return 1 / 1000;
+  if (name === "Scrambled Word" || name === "Scrambled Long Word") return 1 / (name === "Scrambled Long Word" ? 5000 : 500);
+  if (name.indexOf("Word") !== -1) return 1 - Math.pow(1 - Math.pow(26, -((badge.wordLength || 3))), 7 - (badge.wordLength || 3));
+  if (name === "Full Run") return 2 * 21 / ROLL_SPACE;
+  if (name === "Long Run") return 2 * 22 / Math.pow(26, 5);
+  if (name === "Short Run") return 2 * 23 / Math.pow(26, 4);
+  if (name === "Mini Run") return 2 * 24 / Math.pow(26, 3);
+  if (name === "Keyboard Walk") return 1 / 500;
+  if (name === "Keyboard Echo") return 1 / 100;
+  if (name === "Vowel Light") return .5;
+  return 1 / 100;
+}
+
+function applyProbabilityEP(badges) {
+  for (var i = 0; i < badges.length; i++) {
+    var badge = badges[i];
+    var probability = Math.max(1 / ROLL_SPACE, Math.min(1, badgeProbability(badge)));
+    badge.chance = probability;
+    badge.ep = Math.max(1, Math.round(EP_RARITY_SCALE * Math.log10(1 / probability)));
+    badge.desc = badge.desc + " (" + formatChance(probability) + ")";
+  }
+}
+
+function formatChance(probability) {
+  var percent = probability * 100;
+  if (percent >= 1) return percent.toFixed(1) + "% chance";
+  return "1 in " + Math.max(2, Math.round(1 / probability)).toLocaleString();
+}
+
 function computeRoll(letters) {
   var seq = letters.join("");
   var badges = [];
@@ -585,7 +723,7 @@ function computeRoll(letters) {
     badges.push({
       family: "word", name: nameMap[best.len], ep: epMap[best.len],
       desc: 'Your pull contains "' + best.word + '"', rarity: rarityMap[best.len],
-      positions: rangeArr(best.start, best.len)
+      positions: rangeArr(best.start, best.len), wordLength: best.len
     });
     for (var w = 1; w < words.length; w++) {
       if (words[w].word !== best.word) supporting.push(words[w].word);
@@ -593,14 +731,14 @@ function computeRoll(letters) {
     var distinctWords = {};
     for (var dw = 0; dw < words.length; dw++) distinctWords[words[dw].word] = true;
     if (Object.keys(distinctWords).length >= 2) {
-      badges.push({ family: "word", name: "Double Word Score", ep: 20, desc: "Two different words in one roll", rarity: "rare", positions: null });
+      badges.push({ family: "word", name: "Double Word Score", ep: 20, desc: "Two different words in one roll", rarity: "rare", positions: null, wordLength: words[1].len });
     }
   }
 
   var anagrams = findAnagramMatches(letters);
   if (anagrams.length) {
     var anagram = anagrams[0];
-    badges.push({ family: "anagram", name: anagram.len >= 5 ? "Scrambled Long Word" : "Scrambled Word", ep: anagram.len >= 5 ? 180 : 35, desc: 'Rearranges into "' + anagram.word + '"', rarity: anagram.len >= 5 ? "epic" : "uncommon", positions: anagram.positions });
+    badges.push({ family: "anagram", name: anagram.len >= 5 ? "Scrambled Long Word" : "Scrambled Word", ep: anagram.len >= 5 ? 180 : 35, desc: 'Rearranges into "' + anagram.word + '"', rarity: anagram.len >= 5 ? "epic" : "uncommon", positions: anagram.positions, wordLength: anagram.len });
   }
 
   var letterValue = 0, rareValueCount = 0, rareCount = 0;
@@ -702,6 +840,7 @@ function computeRoll(letters) {
   badges.push({ family: "base", name: "Six Letters", ep: 1, desc: "Every roll earns this", rarity: "common", positions: null });
 
   var totalEP = 0;
+  applyProbabilityEP(badges);
   for (var b = 0; b < badges.length; b++) totalEP += badges[b].ep;
 
   var tier = "Trash";
@@ -763,7 +902,7 @@ function renderResult(letters, res) {
     var li = document.createElement("li");
     li.className = "badge-item";
     li.style.setProperty("--badge-color", color);
-    li.style.animationDelay = (i * 70) + "ms";
+    li.style.animationDelay = (i * 180) + "ms";
     var icon = BADGE_ICONS[b.family] || "✨";
     var slots = "<div class='badge-slots'>";
     for (var slot = 0; slot < letters.length; slot++) {
@@ -855,9 +994,9 @@ async function loadLeaderboard() {
     return "<div class='lb-row lb-body-row" + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms'>" +
       "<span class='lb-rank'>" + rankDisplay + "</span>" +
       "<span class='lb-name'>" + escapeHtml(p.name) + "</span>" +
-      "<span class='lb-ep'>" + p.totalEP + "</span>" +
+      "<span class='lb-ep'>" + p.bestEP + "</span>" +
       "<span class='lb-rolls'>" + p.rolls + "</span>" +
-      "<span class='lb-best'>" + p.bestEP + "</span>" +
+      "<span class='lb-best'>" + p.totalEP + "</span>" +
       "</div>";
   }).join("");
 }
@@ -926,7 +1065,7 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
   for (var i = 0; i < 6; i++) letters.push(randLetter());
 
   for (var t = 0; t < 6; t++) {
-    await revealTile(document.getElementById("tile" + t), letters[t], 80);
+    await revealTile(document.getElementById("tile" + t), letters[t], 60);
   }
 
   var res = computeRoll(letters);
@@ -966,7 +1105,7 @@ export default {
 
     if (url.pathname === "/api/leaderboard" && request.method === "GET") {
       const players = await getPlayers(env);
-      const top = players.slice().sort((a, b) => b.totalEP - a.totalEP).slice(0, 20);
+      const top = players.slice().sort((a, b) => b.bestEP - a.bestEP || b.totalEP - a.totalEP).slice(0, 20);
       return json(top);
     }
 
@@ -995,7 +1134,7 @@ export default {
       player.bestEP = Math.max(player.bestEP, ep);
       player.ts = Date.now();
 
-      players.sort((a, b) => b.totalEP - a.totalEP);
+      players.sort((a, b) => b.bestEP - a.bestEP || b.totalEP - a.totalEP);
       const trimmed = players.slice(0, MAX_PLAYERS);
       await env.PLAYERS.put(KV_KEY, JSON.stringify(trimmed));
 
