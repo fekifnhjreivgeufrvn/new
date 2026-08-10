@@ -154,7 +154,7 @@ const HTML_PAGE = `<!DOCTYPE html>
     transform-style: preserve-3d;
     transition: border-color .35s ease, box-shadow .35s ease, background .35s ease;
   }
-  .tile.rolling { animation: tileSpin .12s linear infinite; color: var(--text-2); }
+  .tile.rolling { animation: tileSpin .65s linear infinite; color: var(--text-2); }
   @keyframes tileSpin { 0% { transform: rotateX(0deg); } 100% { transform: rotateX(360deg); } }
   .tile.settled {
     animation: tileSettle .5s cubic-bezier(.34,1.56,.64,1);
@@ -232,8 +232,13 @@ const HTML_PAGE = `<!DOCTYPE html>
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--badge-color, var(--border));
     border-radius: 10px; padding: 10px 14px;
-    opacity: 0; transform: translateX(-8px); animation: badgeIn .55s ease forwards;
+    opacity: 0; transform: translateX(-8px); animation: badgeIn .55s ease var(--badge-delay, 0ms) both;
   }
+  .badge-item.rarity-epic, .badge-item.rarity-legendary, .badge-item.rarity-mythic { box-shadow: 0 0 18px -8px var(--badge-color); }
+  .badge-item.rarity-legendary { animation-name: badgeIn, badgeGlow; animation-duration: .55s, 2.2s; animation-delay: var(--badge-delay), .7s; animation-iteration-count: 1, infinite; }
+  .badge-item.rarity-mythic { animation-name: badgeIn, badgeGlow; animation-duration: .55s, 1.4s; animation-delay: var(--badge-delay), .7s; animation-iteration-count: 1, infinite; }
+  .badge-item.rarity-epic { border-color: color-mix(in srgb, var(--badge-color) 55%, var(--border)); }
+  @keyframes badgeGlow { 0%,100% { box-shadow: 0 0 18px -8px var(--badge-color); } 50% { box-shadow: 0 0 26px 1px var(--badge-color); } }
   @keyframes badgeIn { to { opacity: 1; transform: translateX(0); } }
   .badge-name { font-weight: 700; font-size: .9rem; }
   .badge-icon { display: inline-block; width: 1.35em; margin-right: 4px; }
@@ -242,6 +247,10 @@ const HTML_PAGE = `<!DOCTYPE html>
   .badge-slots { display: flex; gap: 3px; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border); }
   .badge-slot { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; color: var(--text-3); background: var(--surface); font: 700 .68rem "Space Mono", monospace; }
   .badge-slot.active { color: var(--text); border-color: var(--badge-color); background: color-mix(in srgb, var(--badge-color) 18%, var(--surface)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--badge-color) 25%, transparent); }
+  .badge-slot.active { animation: slotPop .45s cubic-bezier(.2,.8,.2,1) both; }
+  .rarity-legendary .badge-slot.active, .rarity-mythic .badge-slot.active { animation: slotPop .45s cubic-bezier(.2,.8,.2,1) both, slotGlow 1.5s ease-in-out .45s infinite; }
+  @keyframes slotPop { from { transform: scale(.7); opacity: .35; } to { transform: scale(1); opacity: 1; } }
+  @keyframes slotGlow { 0%,100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--badge-color) 35%, transparent); } 50% { box-shadow: 0 0 12px 2px var(--badge-color); } }
 
   .supporting { font-size: .78rem; color: var(--text-3); margin-bottom: 14px; position: relative; z-index: 1; }
   .result-footer {
@@ -482,18 +491,12 @@ function revealTile(el, finalLetter, delay) {
   return new Promise(function (resolve) {
     setTimeout(function () {
       el.classList.add("rolling");
-      var spins = 8, count = 0;
-      var iv = setInterval(function () {
-        el.textContent = randLetter();
-        count++;
-        if (count >= spins) {
-          clearInterval(iv);
-          el.textContent = finalLetter;
-          el.classList.remove("rolling");
-          el.classList.add("settled");
-          resolve();
-        }
-      }, 60);
+      setTimeout(function () {
+        el.textContent = finalLetter;
+        el.classList.remove("rolling");
+        el.classList.add("settled");
+        resolve();
+      }, 650);
     }, delay);
   });
 }
@@ -742,15 +745,16 @@ function computeRoll(letters) {
   }
 
   var letterValue = 0, rareValueCount = 0, rareCount = 0;
+  var rareValuePositions = [], rarePositions = [];
   for (var lv = 0; lv < letters.length; lv++) {
     letterValue += SCRABBLE_VALUES[letters[lv]];
-    if (letters[lv] === "Q" || letters[lv] === "X" || letters[lv] === "Z") rareValueCount++;
-    if (RARE_LETTERS[letters[lv]]) rareCount++;
+    if (letters[lv] === "Q" || letters[lv] === "X" || letters[lv] === "Z") { rareValueCount++; rareValuePositions.push(lv); }
+    if (RARE_LETTERS[letters[lv]]) { rareCount++; rarePositions.push(lv); }
   }
-  if (letterValue >= 25) badges.push({ family: "value", name: "High Roller", ep: 25, desc: "Scrabble value reaches " + letterValue, rarity: "rare", positions: null });
-  else if (letterValue <= 8) badges.push({ family: "value", name: "Bargain Bin", ep: 8, desc: "Scrabble value is only " + letterValue, rarity: "common", positions: null });
-  if (rareValueCount) badges.push({ family: "value", name: "Triple Q/X/Z", ep: 30, desc: "A rare 8- or 10-point letter landed", rarity: "epic", positions: null });
-  if (rareCount >= 3) badges.push({ family: "rare", name: "Rare Haul", ep: 45, desc: rareCount + " rare letters in one pull", rarity: "rare", positions: null });
+  if (letterValue >= 25) badges.push({ family: "value", name: "High Roller", ep: 25, desc: "Scrabble value reaches " + letterValue, rarity: "rare", positions: rangeArr(0, 6) });
+  else if (letterValue <= 8) badges.push({ family: "value", name: "Bargain Bin", ep: 8, desc: "Scrabble value is only " + letterValue, rarity: "common", positions: rangeArr(0, 6) });
+  if (rareValueCount) badges.push({ family: "value", name: "Triple Q/X/Z", ep: 30, desc: "A rare 8- or 10-point letter landed", rarity: "epic", positions: rareValuePositions });
+  if (rareCount >= 3) badges.push({ family: "rare", name: "Rare Haul", ep: 45, desc: rareCount + " rare letters in one pull", rarity: "rare", positions: rarePositions });
 
   var uniqueLetters = {};
   for (var u = 0; u < letters.length; u++) uniqueLetters[letters[u]] = (uniqueLetters[letters[u]] || 0) + 1;
@@ -822,7 +826,9 @@ function computeRoll(letters) {
   else if (vowelCount === 0) badges.push({ family: "vowel", name: "No Vowels", ep: 150, desc: "Not a single vowel", rarity: "rare", positions: [0,1,2,3,4,5] });
   else if (pattern === "VCVCVC" || pattern === "CVCVCV") badges.push({ family: "vowel", name: "Perfect Alternation", ep: 100, desc: "Vowels and consonants alternate perfectly", rarity: "rare", positions: [0,1,2,3,4,5] });
   if (vowelCount >= 4 && vowelCount <= 5) badges.push({ family: "vowel", name: "Vowel Heavy", ep: 28, desc: vowelCount + " vowels in the pull", rarity: "uncommon", positions: null });
-  if (vowelCount >= 1 && vowelCount <= 2) badges.push({ family: "vowel", name: "Vowel Light", ep: 12, desc: vowelCount + " vowel" + (vowelCount === 1 ? "" : "s") + " in the pull", rarity: "common", positions: null });
+  var vowelPositions = [];
+  for (var vp = 0; vp < letters.length; vp++) if (VOWELS[letters[vp]]) vowelPositions.push(vp);
+  if (vowelCount >= 1 && vowelCount <= 2) badges.push({ family: "vowel", name: "Vowel Light", ep: 12, desc: vowelCount + " vowel" + (vowelCount === 1 ? "" : "s") + " in the pull", rarity: "common", positions: vowelPositions });
   var adjacentVowels = false;
   for (var av = 0; av < letters.length - 1; av++) if (VOWELS[letters[av]] && VOWELS[letters[av + 1]]) adjacentVowels = true;
   if (adjacentVowels) badges.push({ family: "vowel", name: "Diphthong", ep: 20, desc: "Two vowels sit side by side", rarity: "uncommon", positions: null });
@@ -893,16 +899,16 @@ function renderResult(letters, res) {
   tag.textContent = res.tier;
   tag.className = "tier-badge" + ((res.tier === "Legendary" || res.tier === "Mythic") ? " shimmer-tag" : "");
 
-  var sortedBadges = res.badges.slice().sort(function (a, b) { return a.ep - b.ep; });
+  var sortedBadges = res.badges.slice().sort(function (a, b) { return b.ep - a.ep; });
   var list = document.getElementById("badgeList");
   list.innerHTML = "";
   for (var i = 0; i < sortedBadges.length; i++) {
     var b = sortedBadges[i];
     var color = RARITY_COLORS[b.rarity] || "var(--border)";
     var li = document.createElement("li");
-    li.className = "badge-item";
+    li.className = "badge-item rarity-" + b.rarity;
     li.style.setProperty("--badge-color", color);
-    li.style.animationDelay = (i * 180) + "ms";
+    li.style.setProperty("--badge-delay", ((sortedBadges.length - 1 - i) * 180) + "ms");
     var icon = BADGE_ICONS[b.family] || "✨";
     var slots = "<div class='badge-slots'>";
     for (var slot = 0; slot < letters.length; slot++) {
@@ -988,6 +994,7 @@ async function loadLeaderboard() {
     body.innerHTML = "<div class='lb-empty'>No rolls yet — be the first on the board.</div>";
     return;
   }
+  data.sort(function (a, b) { return (Number(b.bestEP) || 0) - (Number(a.bestEP) || 0) || (Number(b.totalEP) || 0) - (Number(a.totalEP) || 0); });
   body.innerHTML = data.map(function (p, i) {
     var rankDisplay = MEDALS[i] || (i + 1);
     var mine = p.name.toLowerCase() === myName && myName !== "";
@@ -1049,11 +1056,15 @@ function tickCooldownText() {
 setInterval(tickCooldownText, 1000);
 
 /* ================= roll flow ================= */
+var rollInProgress = false;
 document.getElementById("rollBtn").addEventListener("click", async function () {
+  if (rollInProgress) return;
+  rollInProgress = true;
   var name = getName();
   if (!name) {
     showToast("Enter a name first");
     nameInput.focus();
+    rollInProgress = false;
     return;
   }
   var btn = document.getElementById("rollBtn");
@@ -1081,6 +1092,7 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
   await loadLeaderboard();
   syncCooldownUI();
   tickCooldownText();
+  rollInProgress = false;
 });
 
 updateUnlimitedUI();
@@ -1105,7 +1117,7 @@ export default {
 
     if (url.pathname === "/api/leaderboard" && request.method === "GET") {
       const players = await getPlayers(env);
-      const top = players.slice().sort((a, b) => b.bestEP - a.bestEP || b.totalEP - a.totalEP).slice(0, 20);
+      const top = players.slice().sort((a, b) => (Number(b.bestEP) || 0) - (Number(a.bestEP) || 0) || (Number(b.totalEP) || 0) - (Number(a.totalEP) || 0)).slice(0, 20);
       return json(top);
     }
 
@@ -1134,7 +1146,7 @@ export default {
       player.bestEP = Math.max(player.bestEP, ep);
       player.ts = Date.now();
 
-      players.sort((a, b) => b.bestEP - a.bestEP || b.totalEP - a.totalEP);
+      players.sort((a, b) => (Number(b.bestEP) || 0) - (Number(a.bestEP) || 0) || (Number(b.totalEP) || 0) - (Number(a.totalEP) || 0));
       const trimmed = players.slice(0, MAX_PLAYERS);
       await env.PLAYERS.put(KV_KEY, JSON.stringify(trimmed));
 
