@@ -678,7 +678,7 @@ function renderResult(letters, res) {
   document.getElementById("shareBtn").onclick = function () {
     var lines = ["🎲 SixRoll " + letters.join("") + " — " + res.tier + " (" + res.totalEP + " EP)"];
     sortedBadges.forEach(function (b) { lines.push("• " + b.name + " +" + b.ep); });
-    var text = lines.join("\n");
+    var text = lines.join("\\n");
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () { showToast("Copied result to clipboard"); })
         .catch(function () { showToast("Couldn't copy — select and copy manually"); });
