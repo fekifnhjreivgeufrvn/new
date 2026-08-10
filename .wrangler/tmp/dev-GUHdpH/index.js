@@ -1,13 +1,13 @@
-// SixRoll - a "roll six random letters, discover words and patterns" leaderboard game
-// Inspired by RNGdle's number-pattern badge system, applied to letters instead of digits.
-// Frontend design integrated from provided template.
+var __defProp = Object.defineProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-const HTML_PAGE = `<!DOCTYPE html>
+// index.js
+var HTML_PAGE = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SixRoll — Roll. Discover. Compete.</title>
+<title>SixRoll \u2014 Roll. Discover. Compete.</title>
 <meta name="description" content="Roll six random letters, uncover hidden words and patterns, and climb the leaderboard.">
 <script>
 (function () {
@@ -18,7 +18,7 @@ const HTML_PAGE = `<!DOCTYPE html>
     document.documentElement.setAttribute("data-theme", theme);
   } catch (e) {}
 })();
-</script>
+<\/script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -292,11 +292,11 @@ const HTML_PAGE = `<!DOCTYPE html>
   <div class="bg-decor" aria-hidden="true"></div>
 
   <header class="site-header">
-    <div class="brand"><span class="brand-dice">🎲</span><span>SixRoll</span></div>
+    <div class="brand"><span class="brand-dice">\u{1F3B2}</span><span>SixRoll</span></div>
     <div class="header-actions">
-      <a href="#leaderboard" class="icon-btn" aria-label="Jump to leaderboard" title="Leaderboard">🏆</a>
+      <a href="#leaderboard" class="icon-btn" aria-label="Jump to leaderboard" title="Leaderboard">\u{1F3C6}</a>
       <button id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">
-        <span class="theme-icon-moon">🌙</span><span class="theme-icon-sun">☀️</span>
+        <span class="theme-icon-moon">\u{1F319}</span><span class="theme-icon-sun">\u2600\uFE0F</span>
       </button>
     </div>
   </header>
@@ -318,7 +318,7 @@ const HTML_PAGE = `<!DOCTYPE html>
           <div class="cooldown-bar"><div class="cooldown-fill" id="cooldownFill"></div></div>
           <div class="cooldown-text" id="cooldownText"></div>
         </div>
-        <div class="unlimited-badge" id="unlimitedBadge">Test mode — unlimited rolls</div>
+        <div class="unlimited-badge" id="unlimitedBadge">Test mode \u2014 unlimited rolls</div>
       </div>
     </section>
 
@@ -340,7 +340,7 @@ const HTML_PAGE = `<!DOCTYPE html>
     </section>
 
     <section class="leaderboard" id="leaderboard">
-      <h2><span>🏆</span> Leaderboard</h2>
+      <h2><span>\u{1F3C6}</span> Leaderboard</h2>
       <div class="lb-table">
         <div class="lb-row lb-head">
           <span>#</span><span>Name</span><span>Total EP</span><span>Rolls</span><span>Best</span>
@@ -724,9 +724,9 @@ function pickHighlightBadge(badges) {
 }
 
 var BADGE_ICONS = {
-  word: "🔤", anagram: "🔀", value: "💰", rare: "💎", distinct: "🌈", order: "⭐",
-  range: "📏", shape: "🔷", repeat: "🔁", sequence: "📈", symmetry: "🪞", vowel: "🗣️",
-  position: "📍", keyboard: "⌨️", base: "🎲"
+  word: "\u{1F524}", anagram: "\u{1F500}", value: "\u{1F4B0}", rare: "\u{1F48E}", distinct: "\u{1F308}", order: "\u2B50",
+  range: "\u{1F4CF}", shape: "\u{1F537}", repeat: "\u{1F501}", sequence: "\u{1F4C8}", symmetry: "\u{1FA9E}", vowel: "\u{1F5E3}\uFE0F",
+  position: "\u{1F4CD}", keyboard: "\u2328\uFE0F", base: "\u{1F3B2}"
 };
 
 /* ================= rendering ================= */
@@ -764,7 +764,7 @@ function renderResult(letters, res) {
     li.className = "badge-item";
     li.style.setProperty("--badge-color", color);
     li.style.animationDelay = (i * 70) + "ms";
-    var icon = BADGE_ICONS[b.family] || "✨";
+    var icon = BADGE_ICONS[b.family] || "\u2728";
     var slots = "<div class='badge-slots'>";
     for (var slot = 0; slot < letters.length; slot++) {
       var active = b.positions && b.positions.indexOf(slot) !== -1 ? " active" : "";
@@ -801,12 +801,12 @@ function renderResult(letters, res) {
   else if (res.tier === "Mythic") spawnConfetti([TIER_COLORS.Mythic, TIER_COLORS.Legendary, TIER_COLORS.Epic, "#ffffff"], 38);
 
   document.getElementById("shareBtn").onclick = function () {
-    var lines = ["🎲 SixRoll " + letters.join("") + " — " + res.tier + " (" + res.totalEP + " EP)"];
-    sortedBadges.forEach(function (b) { lines.push("• " + b.name + " +" + b.ep); });
+    var lines = ["\u{1F3B2} SixRoll " + letters.join("") + " \u2014 " + res.tier + " (" + res.totalEP + " EP)"];
+    sortedBadges.forEach(function (b) { lines.push("\u2022 " + b.name + " +" + b.ep); });
     var text = lines.join("\\n");
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () { showToast("Copied result to clipboard"); })
-        .catch(function () { showToast("Couldn't copy — select and copy manually"); });
+        .catch(function () { showToast("Couldn't copy \u2014 select and copy manually"); });
     } else {
       showToast("Clipboard not available");
     }
@@ -839,14 +839,14 @@ function escapeHtml(str) {
   });
 }
 
-var MEDALS = ["🥇", "🥈", "🥉"];
+var MEDALS = ["\u{1F947}", "\u{1F948}", "\u{1F949}"];
 async function loadLeaderboard() {
   var data = [];
   try { data = await LB.load(); } catch (e) { data = []; }
   var body = document.getElementById("lbBody");
   var myName = getName().toLowerCase();
   if (!data.length) {
-    body.innerHTML = "<div class='lb-empty'>No rolls yet — be the first on the board.</div>";
+    body.innerHTML = "<div class='lb-empty'>No rolls yet \u2014 be the first on the board.</div>";
     return;
   }
   body.innerHTML = data.map(function (p, i) {
@@ -948,28 +948,23 @@ updateUnlimitedUI();
 syncCooldownUI();
 tickCooldownText();
 loadLeaderboard();
-</script>
+<\/script>
 </body>
 </html>
 `;
-
-const KV_KEY = "players";
-const MAX_PLAYERS = 200;
-
-export default {
+var KV_KEY = "players";
+var MAX_PLAYERS = 200;
+var index_default = {
   async fetch(request, env) {
     const url = new URL(request.url);
-
     if (url.pathname === "/" && request.method === "GET") {
       return new Response(HTML_PAGE, { headers: { "content-type": "text/html;charset=UTF-8" } });
     }
-
     if (url.pathname === "/api/leaderboard" && request.method === "GET") {
       const players = await getPlayers(env);
       const top = players.slice().sort((a, b) => b.totalEP - a.totalEP).slice(0, 20);
       return json(top);
     }
-
     if (url.pathname === "/api/roll" && request.method === "POST") {
       let body;
       try {
@@ -982,7 +977,6 @@ export default {
       if (!name || !Number.isFinite(ep) || ep < 0) {
         return json({ error: "name and non-negative numeric ep required" }, 400);
       }
-
       const players = await getPlayers(env);
       const key = name.toLowerCase();
       let player = players.find((p) => p.name.toLowerCase() === key);
@@ -994,23 +988,18 @@ export default {
       player.rolls += 1;
       player.bestEP = Math.max(player.bestEP, ep);
       player.ts = Date.now();
-
       players.sort((a, b) => b.totalEP - a.totalEP);
       const trimmed = players.slice(0, MAX_PLAYERS);
       await env.PLAYERS.put(KV_KEY, JSON.stringify(trimmed));
-
       return json({ ok: true });
     }
-
     if (url.pathname === "/api/reset" && request.method === "POST") {
       await env.PLAYERS.put(KV_KEY, JSON.stringify([]));
       return json({ ok: true });
     }
-
     return new Response("Not found", { status: 404 });
-  },
+  }
 };
-
 async function getPlayers(env) {
   const raw = await env.PLAYERS.get(KV_KEY);
   if (!raw) return [];
@@ -1020,8 +1009,183 @@ async function getPlayers(env) {
     return [];
   }
 }
-
+__name(getPlayers, "getPlayers");
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 }
+__name(json, "json");
 
+// ../../../AppData/Roaming/npm/node_modules/wrangler/templates/middleware/middleware-ensure-req-body-drained.ts
+var drainBody = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx) => {
+  try {
+    return await middlewareCtx.next(request, env);
+  } finally {
+    try {
+      if (request.body !== null && !request.bodyUsed) {
+        const reader = request.body.getReader();
+        while (!(await reader.read()).done) {
+        }
+      }
+    } catch (e) {
+      console.error("Failed to drain the unused request body.", e);
+    }
+  }
+}, "drainBody");
+var middleware_ensure_req_body_drained_default = drainBody;
+
+// ../../../AppData/Roaming/npm/node_modules/wrangler/templates/middleware/middleware-miniflare3-json-error.ts
+function reduceError(e) {
+  return {
+    name: e?.name,
+    message: e?.message ?? String(e),
+    stack: e?.stack,
+    cause: e?.cause === void 0 ? void 0 : reduceError(e.cause)
+  };
+}
+__name(reduceError, "reduceError");
+var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx) => {
+  try {
+    return await middlewareCtx.next(request, env);
+  } catch (e) {
+    const error = reduceError(e);
+    return Response.json(error, {
+      status: 500,
+      headers: { "MF-Experimental-Error-Stack": "true" }
+    });
+  }
+}, "jsonError");
+var middleware_miniflare3_json_error_default = jsonError;
+
+// .wrangler/tmp/bundle-f3yxIW/middleware-insertion-facade.js
+var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
+  middleware_ensure_req_body_drained_default,
+  middleware_miniflare3_json_error_default
+];
+var middleware_insertion_facade_default = index_default;
+
+// ../../../AppData/Roaming/npm/node_modules/wrangler/templates/middleware/common.ts
+var __facade_middleware__ = [];
+function __facade_register__(...args) {
+  __facade_middleware__.push(...args.flat());
+}
+__name(__facade_register__, "__facade_register__");
+function __facade_invokeChain__(request, env, ctx, dispatch, middlewareChain) {
+  const [head, ...tail] = middlewareChain;
+  const middlewareCtx = {
+    dispatch,
+    next(newRequest, newEnv) {
+      return __facade_invokeChain__(newRequest, newEnv, ctx, dispatch, tail);
+    }
+  };
+  return head(request, env, ctx, middlewareCtx);
+}
+__name(__facade_invokeChain__, "__facade_invokeChain__");
+function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
+  return __facade_invokeChain__(request, env, ctx, dispatch, [
+    ...__facade_middleware__,
+    finalMiddleware
+  ]);
+}
+__name(__facade_invoke__, "__facade_invoke__");
+
+// .wrangler/tmp/bundle-f3yxIW/middleware-loader.entry.ts
+var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
+  constructor(scheduledTime, cron, noRetry) {
+    this.scheduledTime = scheduledTime;
+    this.cron = cron;
+    this.#noRetry = noRetry;
+  }
+  static {
+    __name(this, "__Facade_ScheduledController__");
+  }
+  #noRetry;
+  noRetry() {
+    if (!(this instanceof ___Facade_ScheduledController__)) {
+      throw new TypeError("Illegal invocation");
+    }
+    this.#noRetry();
+  }
+};
+function wrapExportedHandler(worker) {
+  if (__INTERNAL_WRANGLER_MIDDLEWARE__ === void 0 || __INTERNAL_WRANGLER_MIDDLEWARE__.length === 0) {
+    return worker;
+  }
+  for (const middleware of __INTERNAL_WRANGLER_MIDDLEWARE__) {
+    __facade_register__(middleware);
+  }
+  const fetchDispatcher = /* @__PURE__ */ __name(function(request, env, ctx) {
+    if (worker.fetch === void 0) {
+      throw new Error("Handler does not export a fetch() function.");
+    }
+    return worker.fetch(request, env, ctx);
+  }, "fetchDispatcher");
+  return {
+    ...worker,
+    fetch(request, env, ctx) {
+      const dispatcher = /* @__PURE__ */ __name(function(type, init) {
+        if (type === "scheduled" && worker.scheduled !== void 0) {
+          const controller = new __Facade_ScheduledController__(
+            Date.now(),
+            init.cron ?? "",
+            () => {
+            }
+          );
+          return worker.scheduled(controller, env, ctx);
+        }
+      }, "dispatcher");
+      return __facade_invoke__(request, env, ctx, dispatcher, fetchDispatcher);
+    }
+  };
+}
+__name(wrapExportedHandler, "wrapExportedHandler");
+function wrapWorkerEntrypoint(klass) {
+  if (__INTERNAL_WRANGLER_MIDDLEWARE__ === void 0 || __INTERNAL_WRANGLER_MIDDLEWARE__.length === 0) {
+    return klass;
+  }
+  for (const middleware of __INTERNAL_WRANGLER_MIDDLEWARE__) {
+    __facade_register__(middleware);
+  }
+  return class extends klass {
+    #fetchDispatcher = /* @__PURE__ */ __name((request, env, ctx) => {
+      this.env = env;
+      this.ctx = ctx;
+      if (super.fetch === void 0) {
+        throw new Error("Entrypoint class does not define a fetch() function.");
+      }
+      return super.fetch(request);
+    }, "#fetchDispatcher");
+    #dispatcher = /* @__PURE__ */ __name((type, init) => {
+      if (type === "scheduled" && super.scheduled !== void 0) {
+        const controller = new __Facade_ScheduledController__(
+          Date.now(),
+          init.cron ?? "",
+          () => {
+          }
+        );
+        return super.scheduled(controller);
+      }
+    }, "#dispatcher");
+    fetch(request) {
+      return __facade_invoke__(
+        request,
+        this.env,
+        this.ctx,
+        this.#dispatcher,
+        this.#fetchDispatcher
+      );
+    }
+  };
+}
+__name(wrapWorkerEntrypoint, "wrapWorkerEntrypoint");
+var WRAPPED_ENTRY;
+if (typeof middleware_insertion_facade_default === "object") {
+  WRAPPED_ENTRY = wrapExportedHandler(middleware_insertion_facade_default);
+} else if (typeof middleware_insertion_facade_default === "function") {
+  WRAPPED_ENTRY = wrapWorkerEntrypoint(middleware_insertion_facade_default);
+}
+var middleware_loader_entry_default = WRAPPED_ENTRY;
+export {
+  __INTERNAL_WRANGLER_MIDDLEWARE__,
+  middleware_loader_entry_default as default
+};
+//# sourceMappingURL=index.js.map
