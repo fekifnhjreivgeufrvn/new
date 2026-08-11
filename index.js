@@ -146,9 +146,11 @@ const HTML_PAGE = `<!DOCTYPE html>
   .roll-rarity { display: inline-flex; min-height: 24px; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid currentColor; border-radius: 999px; font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: 0; transition: opacity .35s ease, color .35s ease, background .35s ease; }
   .roll-rarity.show { opacity: 1; }
 
+  .account-page-wrap { max-width: 520px; padding-top: 68px; }
   .account-card {
-    margin: 0 auto; max-width: 360px; padding: 22px; border: 1px solid var(--border); border-radius: 16px;
-    background: var(--card-bg); box-shadow: 0 16px 40px -24px rgba(0,0,0,.35);
+    margin: 0 auto; max-width: 520px; padding: 26px 24px; border: 1px solid var(--border); border-radius: 22px;
+    background: var(--card-bg); box-shadow: 0 24px 60px -32px rgba(0,0,0,.28);
+    display: grid; gap: 18px;
   }
   .auth-title { margin: 0 0 8px; font-size: .9rem; font-weight: 700; }
   .auth-hint { margin: 0 0 12px; color: var(--text-3); font-size: .82rem; line-height: 1.5; }
@@ -159,10 +161,11 @@ const HTML_PAGE = `<!DOCTYPE html>
     color: var(--text); font: inherit; padding: 11px 13px; min-width: 0;
   }
   .auth-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .auth-input.editing { background: var(--surface); border-color: var(--accent); }
   .auth-btn, .auth-btn-secondary {
     border: 1px solid var(--accent); background: var(--accent); color: var(--accent-contrast);
     border-radius: 10px; padding: 11px 14px; font: 700 .85rem inherit; cursor: pointer;
-    transition: transform .15s ease, opacity .15s ease;
+    transition: transform .15s ease, opacity .15s ease, color .15s ease, background .15s ease;
   }
   .auth-btn:hover, .auth-btn-secondary:hover { opacity: .92; }
   .auth-btn:active, .auth-btn-secondary:active { transform: scale(.98); }
@@ -170,19 +173,23 @@ const HTML_PAGE = `<!DOCTYPE html>
   .auth-btn-block { width: 100%; margin-top: 12px; }
   .auth-divider { display: flex; align-items: center; gap: 10px; margin: 18px 0; color: var(--text-3); font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
   .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-  .auth-profile { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .auth-profile { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
   .auth-avatar {
-    width: 42px; height: 42px; flex-shrink: 0; border-radius: 50%; background: var(--accent); color: var(--accent-contrast);
-    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.05rem;
+    width: 50px; height: 50px; flex-shrink: 0; border-radius: 50%; background: var(--accent); color: var(--accent-contrast);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem;
   }
-  .auth-email { font-weight: 700; font-size: .92rem; }
-  .auth-subtitle { color: var(--text-3); font-size: .76rem; margin-top: 2px; }
-  .account-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .auth-email { font-weight: 700; font-size: .96rem; }
+  .auth-subtitle { color: var(--text-3); font-size: .78rem; margin-top: 2px; }
+  .account-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .auth-input:disabled { opacity: .74; background: var(--surface-2); cursor: default; }
+  .auth-btn:disabled { opacity: .55; cursor: not-allowed; }
   .name-field {
     display: flex; align-items: center; gap: 10px;
     background: transparent; border: 0; border-bottom: 1px solid var(--soft-border); border-radius: 0;
     padding: 7px 2px; margin: 0 0 8px; transition: border-color .2s ease, box-shadow .2s ease;
   }
+  .name-field label { width: 120px; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
+  .name-field input { flex: 1; border: 0; background: transparent; color: var(--text); font-size: .98rem; outline: none; font-family: inherit; min-width: 0; }
   .name-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
   .name-field label { font-size: .62rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); white-space: nowrap; }
   .name-field input { flex: 1; border: 0; background: transparent; color: var(--text); font-size: .95rem; outline: none; font-family: inherit; min-width: 0; }
@@ -193,15 +200,16 @@ const HTML_PAGE = `<!DOCTYPE html>
   .auth-status.success { color: var(--tier-uncommon); }
   .auth-status.error { color: var(--tier-mythic); }
 
-  .profile-overview { display: grid; gap: 16px; margin-top: 18px; }
-  .profile-overview-head { display: flex; align-items: center; gap: 12px; }
+  .profile-overview { display: grid; gap: 18px; margin-top: 18px; padding: 18px; border-radius: 20px; background: var(--surface-2); border: 1px solid var(--border); }
+  .profile-overview-head { display: flex; align-items: center; gap: 14px; }
   .profile-overview-head .auth-avatar { width: 52px; height: 52px; font-size: 1.2rem; }
-  .profile-summary-title { margin: 0; font-size: 1.15rem; font-weight: 700; }
-  .profile-summary-note { margin: 4px 0 0; color: var(--text-2); font-size: .85rem; }
-  .profile-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .profile-summary-title { margin: 0; font-size: 1.18rem; font-weight: 800; }
+  .profile-summary-note { margin: 4px 0 0; color: var(--text-2); font-size: .88rem; }
+  .profile-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .profile-field {
-    border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border);
-    padding: 12px;
+    border-radius: 18px; background: var(--surface); border: 1px solid var(--border);
+    padding: 16px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
   }
   .profile-field-label { display: block; color: var(--text-3); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
   .profile-field-value { display: block; font-size: 1rem; font-weight: 700; color: var(--text); }
@@ -574,7 +582,8 @@ const HTML_PAGE = `<!DOCTYPE html>
             <input id="accountNameInput" maxlength="20" placeholder="Set your public name">
           </div>
           <div class="account-actions">
-            <button id="saveNameBtn" class="auth-btn" type="button">Save profile</button>
+            <button id="editProfileBtn" class="auth-btn-secondary" type="button">Edit profile</button>
+            <button id="saveNameBtn" class="auth-btn" type="button" disabled>Save profile</button>
             <button id="signOutBtn" class="auth-btn-secondary" type="button">Sign out</button>
           </div>
         </div>
@@ -791,6 +800,22 @@ function setAuthStatus(message, kind) {
   statusEl.className = "auth-status" + (kind ? " " + kind : "");
 }
 
+var profileEditMode = false;
+
+function setProfileEditMode(enabled) {
+  profileEditMode = enabled;
+  var nameInput = document.getElementById("accountNameInput");
+  var saveBtn = document.getElementById("saveNameBtn");
+  var editBtn = document.getElementById("editProfileBtn");
+  if (nameInput) {
+    nameInput.disabled = !enabled;
+    nameInput.classList.toggle("editing", enabled);
+    if (enabled) nameInput.focus();
+  }
+  if (saveBtn) saveBtn.disabled = !enabled;
+  if (editBtn) editBtn.textContent = enabled ? "Cancel edit" : "Edit profile";
+}
+
 function updateAuthUI() {
   var signedOut = document.getElementById("authSignedOut");
   var signedIn = document.getElementById("authSignedIn");
@@ -806,6 +831,7 @@ function updateAuthUI() {
     signedIn.hidden = false;
     emailEl.textContent = authState.user.email || "Signed in";
     nameInput.value = authState.user.name || "";
+    setProfileEditMode(false);
     if (pageTitle) pageTitle.textContent = "Your account";
     if (pageSubtitle) pageSubtitle.textContent = "Manage your display name, or sign out below.";
     if (avatar) {
@@ -817,6 +843,7 @@ function updateAuthUI() {
     signedOut.hidden = false;
     signedIn.hidden = true;
     nameInput.value = "";
+    setProfileEditMode(false);
     if (pageTitle) pageTitle.textContent = "Sign in";
     if (pageSubtitle) pageSubtitle.textContent = "Save your rolls and claim your spot on the leaderboard.";
     if (navLink) navLink.textContent = "Account";
@@ -1000,10 +1027,24 @@ document.getElementById("saveNameBtn").addEventListener("click", async function 
     if (!response.ok) throw new Error(data.error || "Unable to save your profile");
     authState.user = data.user || authState.user;
     updateAuthUI();
+    if (window.location.pathname.startsWith("/account")) {
+      initializeAccountOverview().catch(function () {});
+    }
     setAuthStatus("Profile updated.", "success");
     showToast("Profile updated");
   } catch (e) {
     setAuthStatus(e.message || "Unable to save your profile.", "error");
+  }
+});
+
+document.getElementById("editProfileBtn").addEventListener("click", function () {
+  setProfileEditMode(!profileEditMode);
+});
+
+document.getElementById("accountNameInput").addEventListener("input", function () {
+  var saveBtn = document.getElementById("saveNameBtn");
+  if (saveBtn && profileEditMode) {
+    saveBtn.disabled = this.value.trim() === "";
   }
 });
 
