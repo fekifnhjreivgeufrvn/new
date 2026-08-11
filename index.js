@@ -301,6 +301,34 @@ const HTML_PAGE = `<!DOCTYPE html>
   .lb-rolls, .lb-best { font-family: "Space Mono", monospace; color: var(--text-2); font-size: .8rem; }
   .lb-empty { padding: 26px; text-align: center; color: var(--text-3); font-size: .85rem; }
 
+  /* ---------- admin panel ---------- */
+  .admin-panel {
+    margin-top: 40px; border: 1px solid var(--accent); border-radius: 16px;
+    background: color-mix(in srgb, var(--accent) 6%, var(--surface)); padding: 16px 18px;
+    animation: rowIn .35s ease both;
+  }
+  .admin-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .admin-head h2 { display: flex; align-items: center; gap: 8px; font-size: 1.02rem; margin: 0; }
+  .admin-close {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+    width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: .85rem; line-height: 1;
+    transition: color .2s ease, border-color .2s ease;
+  }
+  .admin-close:hover { color: var(--text); border-color: var(--border-strong); }
+  .admin-note { color: var(--text-3); font-size: .76rem; margin: 8px 0 14px; }
+  .admin-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .admin-btn {
+    border: 1px solid var(--accent); background: var(--accent); color: var(--accent-contrast);
+    padding: 10px 16px; border-radius: 10px; font-size: .85rem; font-weight: 700; font-family: inherit;
+    cursor: pointer; transition: transform .15s ease, opacity .2s ease;
+  }
+  .admin-btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .admin-btn:disabled { opacity: .55; cursor: wait; }
+  .admin-log {
+    font-family: "Space Mono", monospace; font-size: .74rem; color: var(--text-2);
+    margin-top: 12px; white-space: pre-wrap; word-break: break-word;
+  }
+
   /* ---------- toast / confetti ---------- */
   .toast {
     position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px);
@@ -380,6 +408,18 @@ const HTML_PAGE = `<!DOCTYPE html>
         </div>
         <div id="lbBody"></div>
       </div>
+    </section>
+
+    <section class="admin-panel" id="adminPanel" hidden aria-label="Admin tools">
+      <div class="admin-head">
+        <h2><span>🛠️</span> Admin Mode</h2>
+        <button class="admin-close" id="adminClose" type="button" aria-label="Exit admin mode" title="Exit admin mode">✕</button>
+      </div>
+      <p class="admin-note">Enabled via secret code. Actions here modify the live leaderboard.</p>
+      <div class="admin-actions">
+        <button class="admin-btn" id="recalcBtn" type="button">Recalculate all scores</button>
+      </div>
+      <div class="admin-log" id="adminLog"></div>
     </section>
   </main>
 
@@ -1221,6 +1261,98 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
   rollInProgress = false;
 });
 
+/* ================= admin mode ================= */
+var ADMIN_CODE = "dkdkfkdjdjfkfkfjdkfkfjfjdk";
+var adminBuffer = "";
+
+function isAdminEnabled() {
+  return sessionStorage.getItem("sixroll_admin") === "1";
+}
+
+function setAdminPanel(open) {
+  var panel = document.getElementById("adminPanel");
+  if (!panel) return;
+  panel.hidden = !open;
+  if (open) {
+    sessionStorage.setItem("sixroll_admin", "1");
+    panel.scrollIntoView({ behavior: "smooth", block: "center" });
+  } else {
+    sessionStorage.removeItem("sixroll_admin");
+  }
+}
+
+function adminLog(msg) {
+  var el = document.getElementById("adminLog");
+  if (el) el.textContent = msg;
+}
+
+// Listen for the secret code being typed anywhere on the page (ignoring input fields).
+document.addEventListener("keydown", function (e) {
+  var tag = (e.target && e.target.tagName) || "";
+  if (tag === "INPUT" || tag === "TEXTAREA") return;
+  if (e.key && e.key.length === 1) {
+    adminBuffer = (adminBuffer + e.key.toLowerCase()).slice(-ADMIN_CODE.length);
+    if (adminBuffer === ADMIN_CODE) {
+      adminBuffer = "";
+      setAdminPanel(true);
+      showToast("Admin mode enabled");
+    }
+  }
+});
+
+// Recalculate every stored score with the current formula.
+async function recalcAllScores() {
+  var btn = document.getElementById("recalcBtn");
+  btn.disabled = true;
+  adminLog("Loading all stored rolls…");
+  try {
+    var res = await fetch("/api/admin/rolls");
+    if (!res.ok) throw new Error("Failed to load rolls");
+    var rolls = await res.json();
+    if (!Array.isArray(rolls) || !rolls.length) {
+      adminLog("No rolls to recalculate.");
+      btn.disabled = false;
+      return;
+    }
+    var changed = 0;
+    var recomputed = rolls.map(function (r) {
+      var word = String(r.word || "").toUpperCase();
+      var letters = word.split("");
+      var newEp = r.ep;
+      if (letters.length === 6) {
+        try { newEp = computeRoll(letters).totalEP; } catch (err) { newEp = r.ep; }
+      }
+      if (newEp !== r.ep) changed++;
+      return { name: r.name, word: word, ep: newEp, ts: r.ts };
+    });
+    adminLog("Recomputed " + recomputed.length + " rolls (" + changed + " changed). Saving…");
+    var save = await fetch("/api/admin/recalc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rolls: recomputed })
+    });
+    if (!save.ok) throw new Error("Failed to save recalculated scores");
+    var out = await save.json();
+    adminLog("Done — " + out.count + " scores saved, " + changed + " updated to the new formula.");
+    showToast("Recalculated " + changed + " score" + (changed === 1 ? "" : "s"));
+    await loadLeaderboard();
+  } catch (err) {
+    adminLog("Error: " + (err && err.message ? err.message : "recalculation failed"));
+    showToast("Recalculation failed");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("recalcBtn").addEventListener("click", recalcAllScores);
+document.getElementById("adminClose").addEventListener("click", function () {
+  setAdminPanel(false);
+  showToast("Admin mode disabled");
+});
+
+// Restore the panel if admin mode was enabled earlier this session.
+if (isAdminEnabled()) setAdminPanel(true);
+
 updateUnlimitedUI();
 syncCooldownUI();
 tickCooldownText();
@@ -1272,6 +1404,39 @@ export default {
     if (url.pathname === "/api/reset" && request.method === "POST") {
       await env.PLAYERS.put(KV_KEY, JSON.stringify([]));
       return json({ ok: true });
+    }
+
+    // --- Admin: return every stored roll (not just the top 20) so the client
+    // can recompute each score with the current formula. ---
+    if (url.pathname === "/api/admin/rolls" && request.method === "GET") {
+      const rolls = await getRolls(env);
+      return json(rolls);
+    }
+
+    // --- Admin: overwrite the leaderboard with a recalculated set of rolls. ---
+    if (url.pathname === "/api/admin/recalc" && request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+      const incoming = Array.isArray(body && body.rolls) ? body.rolls : null;
+      if (!incoming) return json({ error: "rolls array required" }, 400);
+
+      const cleaned = [];
+      for (const roll of incoming) {
+        if (!roll || typeof roll !== "object") continue;
+        const name = String(roll.name || "").trim().slice(0, 20);
+        const word = String(roll.word || "").trim().toUpperCase().slice(0, 6);
+        const ep = Number(roll.ep);
+        if (!name || !/^[A-Z]{6}$/.test(word) || !Number.isFinite(ep) || ep < 0) continue;
+        const ts = Number.isFinite(Number(roll.ts)) ? Number(roll.ts) : Date.now();
+        cleaned.push({ word, name, ep, ts });
+      }
+      cleaned.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
+      await env.PLAYERS.put(KV_KEY, JSON.stringify(cleaned.slice(0, MAX_ROLLS)));
+      return json({ ok: true, count: cleaned.length });
     }
 
     return new Response("Not found", { status: 404 });
