@@ -844,30 +844,6 @@ async function refreshAuthState() {
   updateAuthUI();
 }
 
-function ensureHeaderLinks() {
-  var headerActions = document.querySelector("header.site-header .header-actions");
-  if (!headerActions) return;
-  if (headerActions.querySelector("a.header-link")) return;
-  var themeButton = document.getElementById("themeToggle");
-  if (!themeButton) return;
-  headerActions.querySelectorAll("a[href='#leaderboard']").forEach(function (oldLink) {
-    oldLink.remove();
-  });
-  var navItems = [
-    { href: "/leaderboard", text: "Leaderboard" },
-    { href: "/", text: "Roll" },
-    { href: "/account", text: "Account", id: "accountNavLink" }
-  ];
-  navItems.forEach(function (item) {
-    var link = document.createElement("a");
-    link.href = item.href;
-    link.className = "header-link";
-    if (item.id) link.id = item.id;
-    link.textContent = item.text;
-    headerActions.insertBefore(link, themeButton);
-  });
-}
-
 async function openAccountOverview(playerName) {
   try {
     var url = "/api/player?name=" + encodeURIComponent(playerName);
@@ -2046,7 +2022,6 @@ if (isAdminEnabled()) setAdminPanel(true);
 updateUnlimitedUI();
 syncCooldownUI();
 tickCooldownText();
-ensureHeaderLinks();
 refreshAuthState().then(function () {
   initializeDetailPage().then(function (isDetailPage) {
     if (!isDetailPage) loadLeaderboard();
