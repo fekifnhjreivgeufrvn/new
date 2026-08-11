@@ -2,8 +2,6 @@
 // Inspired by RNGdle's number-pattern badge system, applied to letters instead of digits.
 // Frontend design integrated from provided template.
 
-import { Resend } from "resend";
-
 const HTML_PAGE = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1748,16 +1746,28 @@ export default {
 
       if (env.RESEND_API_KEY && env.RESEND_FROM_EMAIL) {
         try {
-          const resend = new Resend(env.RESEND_API_KEY);
-          await resend.emails.send({
-            from: env.RESEND_FROM_EMAIL,
-            to: [email],
-            subject: "Your SixRoll sign-in link",
-            text: `Use this link to sign in to SixRoll: ${link}`,
-            html: `<p>Click the link below to sign in to SixRoll.</p><p><a href="${link}">Sign in to SixRoll</a></p><p>If you didn’t request this, you can ignore it.</p>`
+          const response = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${env.RESEND_API_KEY}`
+            },
+            body: JSON.stringify({
+              from: env.RESEND_FROM_EMAIL,
+              to: [email],
+              subject: "Your SixRoll sign-in link",
+              text: `Use this link to sign in to SixRoll: ${link}`,
+              html: `<p>Click the link below to sign in to SixRoll.</p><p><a href="${link}">Sign in to SixRoll</a></p><p>If you didn’t request this, you can ignore it.</p>`
+            })
           });
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Resend send failed", response.status, errorText);
+            return json({ error: "Unable to send the sign-in email right now." }, 500);
+          }
           return json({ ok: true, message: "Check your Gmail inbox for the sign-in link." });
         } catch (error) {
+          console.error("Resend send failed", error);
           return json({ error: "Unable to send the sign-in email right now." }, 500);
         }
       }

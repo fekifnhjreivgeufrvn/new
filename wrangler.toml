@@ -3,7 +3,7 @@ main = "index.js"
 compatibility_date = "2024-11-01"
 
 [vars]
-RESEND_FROM_EMAIL = "hello@yourdomain.com"
+RESEND_FROM_EMAIL = "kiwi.martan@gmail.com"
 
 [[kv_namespaces]]
 binding = "PLAYERS"
