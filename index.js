@@ -2559,6 +2559,9 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
     try {
       await LB.submit(name, letters.join(""), res.totalEP, authState.user.email);
       addRollToLeaderboardCache({ name: name, word: letters.join(""), ep: res.totalEP, ts: Date.now() });
+      if (window.location.pathname === "/account" || window.location.pathname.startsWith("/account/")) {
+        initializeAccountOverview().catch(function () {});
+      }
     } catch (e) {
       showToast("Couldn't save this leaderboard roll");
     }
@@ -2787,9 +2790,35 @@ export default {
     if (url.pathname.startsWith("/api/player/") && request.method === "GET") {
       const playerName = decodeURIComponent(url.pathname.slice("/api/player/".length)).trim();
       if (!playerName) return json({ error: "Player name required" }, 404);
+
       const rolls = await getRolls(env);
       const normalized = playerName.toLowerCase();
-      const playerRolls = rolls.filter((roll) => String(roll.name || "").toLowerCase() === normalized);
+      const users = await getAuthUsers(env);
+
+      // A signed-in user's rolls are stored against their display name AND
+      // their account email. The old profile lookup only matched the display
+      // name, while the self-profile route requested the account email.
+      // Resolve the requested identity first, then match both forms.
+      const stored = users.find((entry) => {
+        const email = String(entry.email || "").toLowerCase();
+        const username = String(entry.username || "").toLowerCase();
+        const displayName = String(entry.name || "").toLowerCase();
+        return email === normalized || username === normalized || displayName === normalized;
+      });
+
+      const resolvedEmail = stored ? String(stored.email || "").toLowerCase() : "";
+      const resolvedUsername = stored ? String(stored.username || stored.email || playerName) : playerName;
+      const resolvedDisplayName = stored ? String(stored.name || "") : "";
+
+      const playerRolls = rolls.filter((roll) => {
+        const rollName = String(roll.name || "").toLowerCase();
+        const rollEmail = String(roll.email || "").toLowerCase();
+        return rollName === normalized ||
+          (resolvedEmail && rollEmail === resolvedEmail) ||
+          (resolvedDisplayName && rollName === resolvedDisplayName.toLowerCase()) ||
+          (resolvedUsername && rollName === resolvedUsername.toLowerCase());
+      });
+
       const rollCount = playerRolls.length;
       const totalEP = playerRolls.reduce((sum, roll) => sum + (Number(roll.ep) || 0), 0);
       const ranked = rolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
@@ -2800,11 +2829,10 @@ export default {
       };
       const bestRoll = playerRolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0))[0] || null;
       const recentRolls = playerRolls.slice().sort((a, b) => (Number(b.ts) || 0) - (Number(a.ts) || 0)).slice(0, 5);
-      const users = await getAuthUsers(env);
-      const stored = users.find((entry) => String(entry.email || entry.username || "").toLowerCase() === normalized);
+
       return json({
-        username: playerName,
-        displayName: stored ? stored.name || "" : "",
+        username: resolvedUsername,
+        displayName: resolvedDisplayName || playerName,
         rollCount,
         totalEP,
         bestRoll: bestRoll ? { word: bestRoll.word, ep: bestRoll.ep, ts: bestRoll.ts, rank: rankFor(bestRoll) } : null,
