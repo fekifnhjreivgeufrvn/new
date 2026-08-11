@@ -2,6 +2,8 @@
 // Inspired by RNGdle's number-pattern badge system, applied to letters instead of digits.
 // Frontend design integrated from provided template.
 
+import { Resend } from "resend";
+
 const HTML_PAGE = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -141,15 +143,41 @@ const HTML_PAGE = `<!DOCTYPE html>
   .roll-rarity { display: inline-flex; min-height: 24px; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid currentColor; border-radius: 999px; font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: 0; transition: opacity .35s ease, color .35s ease, background .35s ease; }
   .roll-rarity.show { opacity: 1; }
 
+  .account-card {
+    margin: 0 auto 20px; max-width: 320px; padding: 16px; border: 1px solid var(--border); border-radius: 16px;
+    background: var(--card-bg); box-shadow: 0 16px 40px -24px rgba(0,0,0,.35);
+  }
+  .auth-title { margin: 0 0 8px; font-size: .9rem; font-weight: 700; }
+  .auth-hint { margin: 8px 0 0; color: var(--text-3); font-size: .78rem; line-height: 1.45; }
+  .auth-controls { display: flex; gap: 8px; margin-top: 12px; }
+  .auth-input {
+    flex: 1; border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+    color: var(--text); font: inherit; padding: 10px 12px; min-width: 0;
+  }
+  .auth-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .auth-btn, .auth-btn-secondary {
+    border: 1px solid var(--accent); background: var(--accent); color: var(--accent-contrast);
+    border-radius: 10px; padding: 10px 12px; font: 700 .82rem inherit; cursor: pointer;
+  }
+  .auth-btn-secondary { background: var(--surface); color: var(--text-2); border-color: var(--border); }
+  .auth-profile { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .auth-email { font-weight: 700; font-size: .9rem; }
+  .auth-subtitle { color: var(--text-3); font-size: .76rem; margin-top: 2px; }
+  .account-actions { display: flex; gap: 8px; margin-top: 10px; }
   .name-field {
     display: flex; align-items: center; gap: 10px;
     background: transparent; border: 0; border-bottom: 1px solid var(--soft-border); border-radius: 0;
-    padding: 7px 2px; margin: 0 auto 20px; max-width: 270px; transition: border-color .2s ease, box-shadow .2s ease;
+    padding: 7px 2px; margin: 0 0 8px; transition: border-color .2s ease, box-shadow .2s ease;
   }
   .name-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
   .name-field label { font-size: .62rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); white-space: nowrap; }
   .name-field input { flex: 1; border: 0; background: transparent; color: var(--text); font-size: .95rem; outline: none; font-family: inherit; min-width: 0; }
   .name-field input::placeholder { color: var(--text-3); }
+  .auth-status {
+    margin-top: 12px; min-height: 1.2em; font-size: .78rem; color: var(--text-2);
+  }
+  .auth-status.success { color: var(--tier-uncommon); }
+  .auth-status.error { color: var(--tier-mythic); }
 
   /* ---------- tiles ---------- */
   .tiles { display: flex; gap: 2px; justify-content: center; perspective: 800px; margin: 0 0 20px; }
@@ -393,10 +421,33 @@ const HTML_PAGE = `<!DOCTYPE html>
     <section class="hero-card">
       <p class="hero-tag">Roll six random letters. Score badges for patterns and real words hidden in your pull.</p>
 
-      <div class="name-field">
-        <label for="nameInput">Player</label>
-        <input id="nameInput" maxlength="20" placeholder="Enter a name for the leaderboard">
-      </div>
+      <section class="account-card" aria-label="Account settings">
+        <div id="authSignedOut">
+          <p class="auth-title">Sign in with magic link</p>
+          <p class="auth-hint">No password needed. Use your Gmail address and we’ll send a sign-in link that drops you straight into your account.</p>
+          <div class="auth-controls">
+            <input id="emailInput" class="auth-input" type="email" inputmode="email" autocomplete="email" placeholder="you@gmail.com">
+            <button id="magicLinkBtn" class="auth-btn" type="button">Send link</button>
+          </div>
+        </div>
+        <div id="authSignedIn" hidden>
+          <div class="auth-profile">
+            <div>
+              <div class="auth-email" id="accountEmail"></div>
+              <div class="auth-subtitle">Signed in with a magic link</div>
+            </div>
+            <button id="signOutBtn" class="auth-btn-secondary" type="button">Sign out</button>
+          </div>
+          <div class="name-field">
+            <label for="accountNameInput">Display name</label>
+            <input id="accountNameInput" maxlength="20" placeholder="Set your public name">
+          </div>
+          <div class="account-actions">
+            <button id="saveNameBtn" class="auth-btn" type="button">Save profile</button>
+          </div>
+        </div>
+        <div id="authStatus" class="auth-status" aria-live="polite"></div>
+      </section>
 
       <div class="tiles" id="tiles"></div>
       <div class="roll-confirmation">
@@ -559,12 +610,104 @@ function updateUnlimitedUI() {
   document.getElementById("unlimitedBadge").style.display = on ? "inline-block" : "none";
 }
 
-/* ================= name ================= */
-function getName() { return (localStorage.getItem("sixroll_name") || "").trim(); }
-var nameInput = document.getElementById("nameInput");
-nameInput.value = getName();
-nameInput.addEventListener("input", function () {
-  localStorage.setItem("sixroll_name", nameInput.value.trim());
+/* ================= auth ================= */
+var authState = { user: null };
+
+function getName() {
+  if (authState.user && authState.user.name) return authState.user.name;
+  return (localStorage.getItem("sixroll_name") || "").trim();
+}
+
+function setAuthStatus(message, kind) {
+  var statusEl = document.getElementById("authStatus");
+  if (!statusEl) return;
+  statusEl.textContent = message || "";
+  statusEl.className = "auth-status" + (kind ? " " + kind : "");
+}
+
+function updateAuthUI() {
+  var signedOut = document.getElementById("authSignedOut");
+  var signedIn = document.getElementById("authSignedIn");
+  var emailEl = document.getElementById("accountEmail");
+  var nameInput = document.getElementById("accountNameInput");
+  if (!signedOut || !signedIn || !emailEl || !nameInput) return;
+  if (authState.user) {
+    signedOut.hidden = true;
+    signedIn.hidden = false;
+    emailEl.textContent = authState.user.email || "Signed in";
+    nameInput.value = authState.user.name || "";
+  } else {
+    signedOut.hidden = false;
+    signedIn.hidden = true;
+    nameInput.value = "";
+  }
+}
+
+async function refreshAuthState() {
+  try {
+    var response = await fetch("/api/auth/me", { cache: "no-store" });
+    if (!response.ok) throw new Error("Not signed in");
+    var data = await response.json();
+    authState.user = data.user || null;
+  } catch (e) {
+    authState.user = null;
+  }
+  updateAuthUI();
+}
+
+document.getElementById("magicLinkBtn").addEventListener("click", async function () {
+  var input = document.getElementById("emailInput");
+  var email = (input.value || "").trim().toLowerCase();
+  if (!email || !/^.+@gmail\.com$/i.test(email)) {
+    setAuthStatus("Please use a Gmail address to receive the sign-in link.", "error");
+    input.focus();
+    return;
+  }
+  setAuthStatus("Sending your magic link…", "");
+  try {
+    var response = await fetch("/api/auth/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Unable to send the link");
+    setAuthStatus(data.message || "Check your Gmail inbox for the sign-in link.", "success");
+    input.value = "";
+  } catch (e) {
+    setAuthStatus(e.message || "Unable to send the link right now.", "error");
+  }
+});
+
+document.getElementById("saveNameBtn").addEventListener("click", async function () {
+  if (!authState.user) return;
+  var nameInput = document.getElementById("accountNameInput");
+  var name = (nameInput.value || "").trim().slice(0, 20);
+  try {
+    var response = await fetch("/api/auth/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name })
+    });
+    var data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Unable to save your profile");
+    authState.user = data.user || authState.user;
+    updateAuthUI();
+    setAuthStatus("Profile updated.", "success");
+    showToast("Profile updated");
+  } catch (e) {
+    setAuthStatus(e.message || "Unable to save your profile.", "error");
+  }
+});
+
+document.getElementById("signOutBtn").addEventListener("click", async function () {
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } catch (e) {}
+  authState.user = null;
+  updateAuthUI();
+  setAuthStatus("Signed out.", "");
+  showToast("Signed out");
 });
 
 /* ================= tiles ================= */
@@ -1212,11 +1355,11 @@ var LB = {
     if (!res.ok) throw new Error("Failed to load leaderboard");
     return await res.json();
   },
-  submit: async function (name, word, ep) {
+  submit: async function (name, word, ep, email) {
     var response = await fetch("/api/roll", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name, word: word, ep: ep })
+      body: JSON.stringify({ name: name, word: word, ep: ep, email: email || "" })
     });
     if (!response.ok) throw new Error("Failed to save roll");
   }
@@ -1421,13 +1564,10 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
   if (rollInProgress) return;
   rollInProgress = true;
   var name = getName();
-  if (!name) {
-    showToast("Enter a name first");
-    nameInput.focus();
-    rollInProgress = false;
-    return;
-  }
   var btn = document.getElementById("rollBtn");
+  if (!authState.user) {
+    showToast("Sign in to save your roll");
+  }
   btn.disabled = true;
   btn.classList.add("is-rolling");
   if (!leaderboardLoaded) await loadLeaderboard();
@@ -1451,9 +1591,9 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
     localStorage.setItem("sixroll_next_roll", String(Date.now() + COOLDOWN_MS));
   }
 
-  if (rollQualifies(res.totalEP)) {
+  if (rollQualifies(res.totalEP) && authState.user) {
     try {
-      await LB.submit(name, letters.join(""), res.totalEP);
+      await LB.submit(name, letters.join(""), res.totalEP, authState.user.email);
       addRollToLeaderboardCache({ name: name, word: letters.join(""), ep: res.totalEP, ts: Date.now() });
     } catch (e) {
       showToast("Couldn't save this leaderboard roll");
@@ -1561,8 +1701,10 @@ if (isAdminEnabled()) setAdminPanel(true);
 updateUnlimitedUI();
 syncCooldownUI();
 tickCooldownText();
-initializeDetailPage().then(function (isDetailPage) {
-  if (!isDetailPage) loadLeaderboard();
+refreshAuthState().then(function () {
+  initializeDetailPage().then(function (isDetailPage) {
+    if (!isDetailPage) loadLeaderboard();
+  });
 });
 </script>
 </body>
@@ -1571,6 +1713,12 @@ initializeDetailPage().then(function (isDetailPage) {
 
 const KV_KEY = "rolls";
 const MAX_ROLLS = 500;
+const AUTH_COOKIE = "sixroll_auth";
+const AUTH_USERS_KEY = "auth_users";
+const AUTH_MAGIC_LINKS_KEY = "auth_magic_links";
+const AUTH_SESSIONS_KEY = "auth_sessions";
+const MAGIC_LINK_TTL_SECONDS = 60 * 15;
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 export default {
   async fetch(request, env) {
@@ -1578,6 +1726,95 @@ export default {
 
     if ((url.pathname === "/" || url.pathname === "/leaderboard" || /^\/roll\/[A-Za-z]{6}$/.test(url.pathname)) && request.method === "GET") {
       return new Response(HTML_PAGE, { headers: { "content-type": "text/html;charset=UTF-8" } });
+    }
+
+    if (url.pathname === "/api/auth/request" && request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+      const email = String(body.email || "").trim().toLowerCase();
+      if (!/^.+@gmail\.com$/i.test(email)) return json({ error: "Use a Gmail address" }, 400);
+      const token = createToken();
+      const users = await getAuthUsers(env);
+      const existing = users.find((u) => u.email === email);
+      const user = existing || { email, name: "", createdAt: Date.now() };
+      if (!existing) users.push(user);
+      await env.PLAYERS.put(AUTH_USERS_KEY, JSON.stringify(users));
+      const link = `${url.origin}/auth/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+      await env.PLAYERS.put(`${AUTH_MAGIC_LINKS_KEY}:${token}`, JSON.stringify({ email, expiresAt: Date.now() + MAGIC_LINK_TTL_SECONDS }));
+
+      if (env.RESEND_API_KEY && env.RESEND_FROM_EMAIL) {
+        try {
+          const resend = new Resend(env.RESEND_API_KEY);
+          await resend.emails.send({
+            from: env.RESEND_FROM_EMAIL,
+            to: [email],
+            subject: "Your SixRoll sign-in link",
+            text: `Use this link to sign in to SixRoll: ${link}`,
+            html: `<p>Click the link below to sign in to SixRoll.</p><p><a href="${link}">Sign in to SixRoll</a></p><p>If you didn’t request this, you can ignore it.</p>`
+          });
+          return json({ ok: true, message: "Check your Gmail inbox for the sign-in link." });
+        } catch (error) {
+          return json({ error: "Unable to send the sign-in email right now." }, 500);
+        }
+      }
+
+      return json({ ok: true, message: "Sign-in email delivery is not configured yet. Set RESEND_API_KEY and RESEND_FROM_EMAIL to enable it." }, 500);
+    }
+
+    if (url.pathname === "/api/auth/me" && request.method === "GET") {
+      const user = await getSessionUser(request, env);
+      return user ? json({ user }) : json({ error: "Not signed in" }, 401);
+    }
+
+    if (url.pathname === "/api/auth/profile" && request.method === "POST") {
+      const user = await getSessionUser(request, env);
+      if (!user) return json({ error: "Not signed in" }, 401);
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+      const name = String(body.name || "").trim().slice(0, 20);
+      const users = await getAuthUsers(env);
+      const stored = users.find((entry) => entry.email === user.email);
+      if (stored) {
+        stored.name = name;
+        await env.PLAYERS.put(AUTH_USERS_KEY, JSON.stringify(users));
+      }
+      return json({ user: { email: user.email, name } });
+    }
+
+    if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+      const cookie = serializeCookie(AUTH_COOKIE, "", { path: "/", maxAge: 0, httpOnly: true, secure: true, sameSite: "Lax" });
+      return json({ ok: true }, 200, { "Set-Cookie": cookie });
+    }
+
+    if (url.pathname === "/auth/verify" && request.method === "GET") {
+      const token = String(url.searchParams.get("token") || "");
+      const email = String(url.searchParams.get("email") || "").toLowerCase();
+      const tokenKey = `${AUTH_MAGIC_LINKS_KEY}:${token}`;
+      const raw = await env.PLAYERS.get(tokenKey);
+      if (!raw) return new Response("Invalid or expired magic link", { status: 400 });
+      const payload = JSON.parse(raw);
+      if (payload.email !== email || payload.expiresAt <= Date.now()) {
+        await env.PLAYERS.delete(tokenKey);
+        return new Response("Invalid or expired magic link", { status: 400 });
+      }
+      await env.PLAYERS.delete(tokenKey);
+      const users = await getAuthUsers(env);
+      const existing = users.find((entry) => entry.email === email);
+      const user = existing || { email, name: "", createdAt: Date.now() };
+      if (!existing) users.push(user);
+      await env.PLAYERS.put(AUTH_USERS_KEY, JSON.stringify(users));
+      const sessionToken = createSessionToken(email);
+      await env.PLAYERS.put(`${AUTH_SESSIONS_KEY}:${sessionToken}`, JSON.stringify({ email, expiresAt: Date.now() + SESSION_TTL_SECONDS }));
+      const cookie = serializeCookie(AUTH_COOKIE, sessionToken, { httpOnly: true, secure: true, sameSite: "Lax", path: "/", maxAge: SESSION_TTL_SECONDS });
+      return new Response("Signed in. You can close this tab.", { status: 302, headers: { Location: "/", "Set-Cookie": cookie, "content-type": "text/plain;charset=UTF-8" } });
     }
 
     if (url.pathname === "/api/leaderboard" && request.method === "GET") {
@@ -1605,12 +1842,19 @@ export default {
       const name = String(body.name || "").trim().slice(0, 20);
       const word = String(body.word || "").trim().toUpperCase().slice(0, 6);
       const ep = Number(body.ep);
+      const email = String(body.email || "").trim().toLowerCase();
+      const signedInUser = await getSessionUser(request, env);
+      const canSave = !!signedInUser && (!email || email === signedInUser.email);
       if (!name || !/^[A-Z]{6}$/.test(word) || !Number.isFinite(ep) || ep < 0) {
         return json({ error: "name, six-letter word, and non-negative numeric ep required" }, 400);
       }
 
+      if (!canSave) {
+        return json({ ok: false, skipped: true });
+      }
+
       const rolls = await getRolls(env);
-      rolls.push({ word, name, ep, ts: Date.now() });
+      rolls.push({ word, name, ep, ts: Date.now(), email: signedInUser ? signedInUser.email : null });
       rolls.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
       await env.PLAYERS.put(KV_KEY, JSON.stringify(rolls.slice(0, MAX_ROLLS)));
 
@@ -1670,7 +1914,60 @@ async function getRolls(env) {
   }
 }
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
+async function getAuthUsers(env) {
+  const raw = await env.PLAYERS.get(AUTH_USERS_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function getSessionUser(request, env) {
+  const cookieHeader = request.headers.get("Cookie") || "";
+  const match = cookieHeader.match(new RegExp(`(?:^|; )${AUTH_COOKIE}=([^;]+)`));
+  if (!match) return null;
+  const token = decodeURIComponent(match[1]);
+  const raw = await env.PLAYERS.get(`${AUTH_SESSIONS_KEY}:${token}`);
+  if (!raw) return null;
+  try {
+    const payload = JSON.parse(raw);
+    if (payload.expiresAt <= Date.now()) {
+      await env.PLAYERS.delete(`${AUTH_SESSIONS_KEY}:${token}`);
+      return null;
+    }
+    const users = await getAuthUsers(env);
+    const user = users.find((entry) => entry.email === payload.email);
+    return user ? { email: user.email, name: user.name } : { email: payload.email, name: "" };
+  } catch {
+    return null;
+  }
+}
+
+function createToken() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function createSessionToken(email) {
+  return `${email}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+}
+
+function serializeCookie(name, value, options = {}) {
+  let cookie = `${name}=${encodeURIComponent(value)}`;
+  if (options.maxAge) cookie += `; Max-Age=${options.maxAge}`;
+  if (options.path) cookie += `; Path=${options.path}`;
+  if (options.httpOnly) cookie += `; HttpOnly`;
+  if (options.secure) cookie += `; Secure`;
+  if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
+  return cookie;
+}
+
+function json(data, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: Object.assign({ "content-type": "application/json" }, extraHeaders)
+  });
 }
 
