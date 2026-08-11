@@ -112,6 +112,8 @@ const HTML_PAGE = `<!DOCTYPE html>
   .brand-dice { font-size: .9rem; display: inline-block; animation: diceFloat 4s ease-in-out infinite; }
   @keyframes diceFloat { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(8deg); } }
   .header-actions { display: flex; align-items: center; gap: 8px; }
+  .header-link { color: var(--text-2); font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-decoration: none; text-transform: uppercase; }
+  .header-link:hover { color: var(--text); }
   .icon-btn {
     display: inline-flex; align-items: center; justify-content: center;
     width: 27px; height: 27px; border-radius: 7px; border: 1px solid var(--border);
@@ -285,6 +287,11 @@ const HTML_PAGE = `<!DOCTYPE html>
 
   /* ---------- leaderboard ---------- */
   .leaderboard { margin-top: 44px; }
+  .leaderboard-page-title { margin: 0 0 14px; font-size: 1.15rem; letter-spacing: .08em; text-transform: uppercase; }
+  .featured-roll { max-width: 300px; margin: 0 auto 18px; padding: 14px; text-align: center; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); }
+  .featured-label { color: var(--text-3); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; }
+  .featured-word { margin: 8px 0 5px; font: 700 2rem "Space Mono", monospace; }
+  .featured-meta { color: var(--text-2); font-size: .72rem; }
   .leaderboard h2 { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; margin: 0 0 14px; }
   .lb-table { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--surface); }
   .lb-row { display: grid; grid-template-columns: 36px 1fr 1fr 88px; align-items: center; gap: 8px; padding: 11px 14px; font-size: .85rem; }
@@ -307,6 +314,9 @@ const HTML_PAGE = `<!DOCTYPE html>
   html.detail-page .hero-card, html.detail-page .result-card, html.detail-page .leaderboard, html.detail-page .admin-panel { display: none; }
   html.detail-page .container { padding-top: 42px; }
   html.detail-page .detail-card { display: block; margin-top: 0; }
+  html.leaderboard-page .hero-card, html.leaderboard-page .result-card, html.leaderboard-page .detail-card, html.leaderboard-page .admin-panel { display: none; }
+  html.leaderboard-page .container { max-width: 720px; padding-top: 34px; }
+  html.leaderboard-page .leaderboard { margin-top: 0; }
   .detail-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 7px 11px; cursor: pointer; font: 600 .78rem inherit; }
   .detail-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 14px 0 4px; }
   .detail-word { font: 700 1.45rem "Space Mono", monospace; }
@@ -365,7 +375,8 @@ const HTML_PAGE = `<!DOCTYPE html>
   <header class="site-header">
     <div class="brand"><span class="brand-dice">🎲</span><span>SixRoll</span></div>
     <div class="header-actions">
-      <a href="#leaderboard" class="icon-btn" aria-label="Jump to leaderboard" title="Leaderboard">🏆</a>
+      <a href="/leaderboard" class="header-link">Leaderboard</a>
+      <a href="/" class="header-link">Roll</a>
       <button id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">
         <span class="theme-icon-moon">🌙</span><span class="theme-icon-sun">☀️</span>
       </button>
@@ -413,7 +424,12 @@ const HTML_PAGE = `<!DOCTYPE html>
     </section>
 
     <section class="leaderboard" id="leaderboard">
-      <h2><span>🏆</span> Leaderboard</h2>
+      <h1 class="leaderboard-page-title">Global Leaderboard</h1>
+      <div class="featured-roll" id="featuredRoll" hidden>
+        <div class="featured-label">Top roll</div>
+        <div class="featured-word" id="featuredWord"></div>
+        <div class="featured-meta" id="featuredMeta"></div>
+      </div>
       <div class="lb-table">
         <div class="lb-row lb-head">
           <span>#</span><span>Word</span><span>Name</span><span>EP</span>
@@ -1199,10 +1215,17 @@ function renderLeaderboard(data) {
   var body = document.getElementById("lbBody");
   var myName = getName().toLowerCase();
   if (!data.length) {
+    document.getElementById("featuredRoll").hidden = true;
     body.innerHTML = "<div class='lb-empty'>No rolls yet — be the first on the board.</div>";
     return;
   }
   data.sort(function (a, b) { return (Number(b.ep) || 0) - (Number(a.ep) || 0); });
+  var featured = data[0];
+  var featuredColor = colorForEP(Number(featured.ep) || 0);
+  document.getElementById("featuredWord").textContent = featured.word;
+  document.getElementById("featuredWord").style.color = featuredColor;
+  document.getElementById("featuredMeta").textContent = featured.name + " · " + featured.ep + " EP · " + tierForEP(Number(featured.ep) || 0);
+  document.getElementById("featuredRoll").hidden = !document.documentElement.classList.contains("leaderboard-page");
   body.innerHTML = data.map(function (p, i) {
     var rankDisplay = MEDALS[i] || (i + 1);
     var mine = p.name.toLowerCase() === myName && myName !== "";
@@ -1274,6 +1297,11 @@ document.getElementById("detailBack").addEventListener("click", function () {
 
 async function initializeDetailPage() {
   var path = window.location.pathname;
+  if (path === "/leaderboard") {
+    document.documentElement.classList.add("leaderboard-page");
+    document.title = "Global Leaderboard — SixRoll";
+    return false;
+  }
   var prefix = "/roll/";
   if (path.indexOf(prefix) !== 0) return false;
   document.documentElement.classList.add("detail-page");
@@ -1503,7 +1531,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if ((url.pathname === "/" || /^\/roll\/[A-Za-z]{6}$/.test(url.pathname)) && request.method === "GET") {
+    if ((url.pathname === "/" || url.pathname === "/leaderboard" || /^\/roll\/[A-Za-z]{6}$/.test(url.pathname)) && request.method === "GET") {
       return new Response(HTML_PAGE, { headers: { "content-type": "text/html;charset=UTF-8" } });
     }
 
