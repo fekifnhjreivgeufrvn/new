@@ -304,6 +304,9 @@ const HTML_PAGE = `<!DOCTYPE html>
   .lb-empty { padding: 26px; text-align: center; color: var(--text-3); font-size: .85rem; }
   .detail-card { display: none; margin-top: 26px; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); }
   .detail-card.show { display: block; }
+  html.detail-page .hero-card, html.detail-page .result-card, html.detail-page .leaderboard, html.detail-page .admin-panel { display: none; }
+  html.detail-page .container { padding-top: 42px; }
+  html.detail-page .detail-card { display: block; margin-top: 0; }
   .detail-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 7px 11px; cursor: pointer; font: 600 .78rem inherit; }
   .detail-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 14px 0 4px; }
   .detail-word { font: 700 1.45rem "Space Mono", monospace; }
@@ -1211,7 +1214,7 @@ async function loadLeaderboard() {
   }).join("");
   body.querySelectorAll(".lb-word-btn").forEach(function (button) {
     button.addEventListener("click", function () {
-      showRollDetail(button.dataset.word, button.dataset.player, Number(button.dataset.ep));
+      window.location.href = "/roll/" + encodeURIComponent(button.dataset.word) + "?name=" + encodeURIComponent(button.dataset.player) + "&ep=" + encodeURIComponent(button.dataset.ep);
     });
   });
 }
@@ -1241,12 +1244,34 @@ function showRollDetail(word, player, ep) {
     list.appendChild(item);
   });
   detail.classList.add("show");
-  detail.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 document.getElementById("detailBack").addEventListener("click", function () {
-  document.getElementById("rollDetail").classList.remove("show");
+  window.location.href = "/#leaderboard";
 });
+
+async function initializeDetailPage() {
+  var path = window.location.pathname;
+  var prefix = "/roll/";
+  if (path.indexOf(prefix) !== 0) return false;
+  document.documentElement.classList.add("detail-page");
+  var word = path.slice(prefix.length).toUpperCase();
+  if (!/^[A-Z]{6}$/.test(word)) return false;
+  var params = new URLSearchParams(window.location.search);
+  var player = params.get("name") || "Unknown player";
+  var ep = Number(params.get("ep")) || 0;
+  try {
+    var response = await fetch("/api/roll/" + encodeURIComponent(word) + "?name=" + encodeURIComponent(player) + "&ep=" + encodeURIComponent(ep));
+    if (response.ok) {
+      var record = await response.json();
+      player = record.name;
+      ep = Number(record.ep) || ep;
+    }
+  } catch (e) {}
+  showRollDetail(word, player, ep);
+  document.title = word + " — SixRoll details";
+  return true;
+}
 
 /* ================= cooldown ================= */
 function getCooldownRemaining() {
@@ -1436,7 +1461,9 @@ if (isAdminEnabled()) setAdminPanel(true);
 updateUnlimitedUI();
 syncCooldownUI();
 tickCooldownText();
-loadLeaderboard();
+initializeDetailPage().then(function (isDetailPage) {
+  if (!isDetailPage) loadLeaderboard();
+});
 </script>
 </body>
 </html>
@@ -1449,7 +1476,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (url.pathname === "/" && request.method === "GET") {
+    if ((url.pathname === "/" || /^\/roll\/[A-Za-z]{6}$/.test(url.pathname)) && request.method === "GET") {
       return new Response(HTML_PAGE, { headers: { "content-type": "text/html;charset=UTF-8" } });
     }
 
@@ -1457,6 +1484,15 @@ export default {
       const rolls = await getRolls(env);
       const top = rolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0)).slice(0, 20);
       return json(top);
+    }
+
+    if (url.pathname.startsWith("/api/roll/") && request.method === "GET") {
+      const word = decodeURIComponent(url.pathname.slice("/api/roll/".length)).toUpperCase();
+      const name = String(url.searchParams.get("name") || "").toLowerCase();
+      const ep = Number(url.searchParams.get("ep"));
+      const rolls = await getRolls(env);
+      const record = rolls.find((roll) => roll.word === word && (!name || roll.name.toLowerCase() === name) && (!Number.isFinite(ep) || Number(roll.ep) === ep));
+      return record ? json(record) : json({ error: "Roll not found" }, 404);
     }
 
     if (url.pathname === "/api/roll" && request.method === "POST") {
