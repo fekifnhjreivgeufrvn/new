@@ -89,6 +89,11 @@ const HTML_PAGE = `<!DOCTYPE html>
   }
   .mono { font-family: "Space Mono", ui-monospace, monospace; }
 
+  /* ---------- accessibility: visible keyboard focus ---------- */
+  a:focus-visible, button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px;
+  }
+
   /* ---------- ambient background ---------- */
   .bg-decor { display: none; }
   .bg-decor::before, .bg-decor::after {
@@ -271,6 +276,36 @@ const HTML_PAGE = `<!DOCTYPE html>
   }
   @keyframes tagShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
+  /* ---------- tier identity ----------
+     Every rarity pill (hero roll, leaderboard, detail page) shares this system so a tier
+     reads as a distinct "material" at a glance, not just recolored text in a pill outline. */
+  .tier-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent); }
+  .roll-rarity .tier-label { position: relative; z-index: 1; }
+  .roll-rarity.rarity-trash, .roll-rarity.rarity-common { box-shadow: none; }
+  .roll-rarity.rarity-uncommon { box-shadow: 0 0 10px -5px currentColor; }
+  .roll-rarity.rarity-rare { box-shadow: 0 0 13px -5px currentColor; }
+  .roll-rarity.rarity-epic {
+    box-shadow: 0 0 16px -4px currentColor;
+    animation: tierPulse 2.6s ease-in-out infinite;
+  }
+  .roll-rarity.rarity-legendary {
+    box-shadow: 0 0 20px -3px currentColor;
+    background-image: linear-gradient(120deg, color-mix(in srgb, currentColor 14%, transparent) 0%, color-mix(in srgb, currentColor 34%, transparent) 50%, color-mix(in srgb, currentColor 14%, transparent) 100%);
+    background-size: 220% 100%;
+    animation: tierPulse 2s ease-in-out infinite, tierShimmer 2.6s linear infinite;
+  }
+  .roll-rarity.rarity-mythic, .roll-rarity.rarity-divine, .roll-rarity.rarity-cosmic {
+    box-shadow: 0 0 24px -2px currentColor;
+    background-image: linear-gradient(120deg, color-mix(in srgb, currentColor 18%, transparent) 0%, color-mix(in srgb, currentColor 44%, transparent) 50%, color-mix(in srgb, currentColor 18%, transparent) 100%);
+    background-size: 220% 100%;
+    animation: tierPulse 1.3s ease-in-out infinite, tierShimmer 1.7s linear infinite;
+  }
+  @keyframes tierPulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.22); } }
+  @keyframes tierShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  /* compact version for tight spaces like leaderboard rows */
+  .tier-dot-mini { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 5px; box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 20%, transparent); vertical-align: middle; }
+  .tier-dot-mini.rarity-epic, .tier-dot-mini.rarity-legendary, .tier-dot-mini.rarity-mythic, .tier-dot-mini.rarity-divine, .tier-dot-mini.rarity-cosmic { animation: tierPulse 2s ease-in-out infinite; }
+
   .badge-list { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1; }
   .badge-item {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -329,6 +364,8 @@ const HTML_PAGE = `<!DOCTYPE html>
   .featured-label { color: var(--text-3); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; }
   .featured-word { margin: 8px 0 5px; font: 700 2rem "Space Mono", monospace; }
   .featured-meta { color: var(--text-2); font-size: .72rem; }
+  .featured-stats { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .featured-by { color: var(--text-3); font-size: .74rem; }
   .leaderboard h2 { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; margin: 0 0 14px; }
   .lb-table { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--surface); }
   .lb-row { display: grid; grid-template-columns: 36px 1fr 1fr 88px; align-items: center; gap: 8px; padding: 11px 14px; font-size: .85rem; }
@@ -374,10 +411,24 @@ const HTML_PAGE = `<!DOCTYPE html>
     text-decoration: none; font-weight: 600;
   }
   .account-back-link:hover { color: var(--text-2); }
-  .detail-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 7px 11px; cursor: pointer; font: 600 .78rem inherit; }
-  .detail-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 14px 0 4px; }
-  .detail-word { font: 700 1.45rem "Space Mono", monospace; }
-  .detail-meta { color: var(--text-2); font-size: .8rem; }
+  .detail-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 7px 11px; cursor: pointer; font: 600 .78rem inherit; transition: border-color .2s ease, color .2s ease; }
+  .detail-back:hover { border-color: var(--border-strong); color: var(--text); }
+  .detail-top {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    margin: 18px 0 14px; padding-bottom: 16px; border-bottom: 1px dashed var(--border);
+  }
+  .detail-player { display: flex; align-items: center; gap: 12px; }
+  .detail-avatar {
+    width: 42px; height: 42px; border-radius: 50%; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.05rem; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+  .detail-player-name { color: var(--text-2); font-size: .8rem; font-weight: 600; }
+  .detail-word { font: 700 1.45rem "Space Mono", monospace; margin-top: 2px; }
+  .detail-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
+  .detail-ep-value { font-family: "Space Mono", monospace; font-weight: 700; font-size: .95rem; color: var(--text-2); }
+  .detail-summary { color: var(--text-3); font-size: .78rem; margin-bottom: 14px; }
   .detail-list { margin: 16px 0 0; }
 
   /* ---------- admin panel ---------- */
@@ -531,7 +582,10 @@ const HTML_PAGE = `<!DOCTYPE html>
       <div class="featured-roll" id="featuredRoll" hidden>
         <div class="featured-label">Top roll</div>
         <div class="featured-word" id="featuredWord"></div>
-        <div class="featured-meta" id="featuredMeta"></div>
+        <div class="featured-stats">
+          <span class="roll-rarity show" id="featuredTier"></span>
+          <span class="featured-by" id="featuredBy"></span>
+        </div>
       </div>
       <div class="lb-table">
         <div class="lb-row lb-head">
@@ -542,12 +596,21 @@ const HTML_PAGE = `<!DOCTYPE html>
     </section>
 
     <section class="detail-card" id="rollDetail" aria-live="polite">
-      <button class="detail-back" id="detailBack" type="button">Back to leaderboard</button>
-      <div class="detail-heading">
-        <span class="detail-word" id="detailWord"></span>
-        <span class="detail-meta" id="detailMeta"></span>
+      <button class="detail-back" id="detailBack" type="button">&larr; Back to leaderboard</button>
+      <div class="detail-top">
+        <div class="detail-player">
+          <span class="detail-avatar" id="detailAvatar" aria-hidden="true"></span>
+          <div>
+            <div class="detail-player-name" id="detailPlayerName"></div>
+            <div class="detail-word" id="detailWord"></div>
+          </div>
+        </div>
+        <div class="detail-stats">
+          <span class="roll-rarity show" id="detailTier"></span>
+          <span class="detail-ep-value" id="detailEp"></span>
+        </div>
       </div>
-      <div class="detail-meta" id="detailSummary"></div>
+      <div class="detail-summary" id="detailSummary"></div>
       <ul class="badge-list detail-list" id="detailBadgeList"></ul>
     </section>
 
@@ -1395,10 +1458,10 @@ async function renderResult(letters, res, leaderboard) {
   // settled on its final tier color, instead of announcing the result before the reveal plays.
   panel.style.setProperty("--tier-color", tierColor);
   var rank = rankForEP(res.totalEP, leaderboard);
-  rollRarity.textContent = res.tier + (rank ? " · #" + rank : "");
+  rollRarity.innerHTML = "<span class='tier-dot' aria-hidden='true'></span><span class='tier-label'>" + res.tier + (rank ? " · #" + rank : "") + "</span>";
   rollRarity.style.color = tierColor;
   rollRarity.style.background = "color-mix(in srgb, " + tierColor + " 14%, transparent)";
-  rollRarity.className = "roll-rarity show";
+  rollRarity.className = "roll-rarity show rarity-" + res.tier.toLowerCase();
 
   if (res.tier === "Epic") spawnConfetti([TIER_COLORS.Epic, TIER_COLORS.Rare, "#ffffff"], 16);
   else if (res.tier === "Legendary") spawnConfetti([TIER_COLORS.Legendary, TIER_COLORS.Epic, "#ffffff"], 26);
@@ -1478,19 +1541,26 @@ function renderLeaderboard(data) {
   data.sort(function (a, b) { return (Number(b.ep) || 0) - (Number(a.ep) || 0); });
   var featured = data[0];
   var featuredColor = colorForEP(Number(featured.ep) || 0);
+  var featuredTier = tierForEP(Number(featured.ep) || 0);
   document.getElementById("featuredWord").textContent = featured.word;
   document.getElementById("featuredWord").style.color = featuredColor;
-  document.getElementById("featuredMeta").textContent = featured.name + " · " + featured.ep + " EP · " + tierForEP(Number(featured.ep) || 0);
+  var featTierEl = document.getElementById("featuredTier");
+  featTierEl.innerHTML = "<span class='tier-dot' aria-hidden='true'></span><span class='tier-label'>" + featuredTier + "</span>";
+  featTierEl.style.color = featuredColor;
+  featTierEl.style.background = "color-mix(in srgb, " + featuredColor + " 14%, transparent)";
+  featTierEl.className = "roll-rarity show rarity-" + featuredTier.toLowerCase();
+  document.getElementById("featuredBy").textContent = featured.name + " · " + featured.ep + " EP";
   document.getElementById("featuredRoll").hidden = !document.documentElement.classList.contains("leaderboard-page");
   body.innerHTML = data.map(function (p, i) {
     var rankDisplay = MEDALS[i] || (i + 1);
     var mine = p.name.toLowerCase() === myName && myName !== "";
     var wordColor = colorForEP(Number(p.ep) || 0);
+    var rowTier = tierForEP(Number(p.ep) || 0);
     return "<div class='lb-row lb-body-row" + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms'>" +
       "<span class='lb-rank'>" + rankDisplay + "</span>" +
       "<span class='lb-word' style='color:" + wordColor + "'><button class='lb-word-btn' type='button' data-word='" + escapeHtml(p.word) + "' data-player='" + escapeHtml(p.name) + "' data-ep='" + p.ep + "' style='color:" + wordColor + "'>" + escapeHtml(p.word) + "</button></span>" +
       "<span class='lb-name'>" + escapeHtml(p.name) + "</span>" +
-      "<span class='lb-ep' style='color:" + wordColor + "'>" + p.ep + "</span>" +
+      "<span class='lb-ep' style='color:" + wordColor + "' title='" + rowTier + "'><span class='tier-dot-mini rarity-" + rowTier.toLowerCase() + "'></span>" + p.ep + "</span>" +
       "</div>";
   }).join("");
   body.querySelectorAll(".lb-word-btn").forEach(function (button) {
@@ -1545,9 +1615,21 @@ function showRollDetail(word, player, ep) {
   var letters = word.split("");
   var result = computeRoll(letters);
   var color = colorForEP(ep);
+  var tier = tierForEP(ep);
+  var displayName = player || "Anonymous";
+
   document.getElementById("detailWord").textContent = word;
   document.getElementById("detailWord").style.color = color;
-  document.getElementById("detailMeta").textContent = player + " · " + ep + " EP · " + tierForEP(ep);
+  document.getElementById("detailPlayerName").textContent = displayName;
+  document.getElementById("detailAvatar").textContent = displayName.trim().charAt(0).toUpperCase() || "?";
+
+  var tierEl = document.getElementById("detailTier");
+  tierEl.innerHTML = "<span class='tier-dot' aria-hidden='true'></span><span class='tier-label'>" + tier + "</span>";
+  tierEl.style.color = color;
+  tierEl.style.background = "color-mix(in srgb, " + color + " 14%, transparent)";
+  tierEl.className = "roll-rarity show rarity-" + tier.toLowerCase();
+
+  document.getElementById("detailEp").textContent = ep + " EP";
   document.getElementById("detailSummary").textContent = result.badges.length + " badge types found in this roll";
   var list = document.getElementById("detailBadgeList");
   list.innerHTML = "";
