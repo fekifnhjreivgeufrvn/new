@@ -529,6 +529,11 @@ const HTML_PAGE = `<!DOCTYPE html>
   @media (prefers-reduced-motion: reduce) {
     * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 680px) {
+    .account-grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -646,33 +651,6 @@ const HTML_PAGE = `<!DOCTYPE html>
           </div>
         </section>
       </div>
-      <a href="/" class="account-back-link">← Back to the game</a>
-          <div class="profile-field">
-            <span class="profile-field-label">Username</span>
-            <span class="profile-field-value" id="overviewUsername">—</span>
-            <p class="profile-description">The unique identifier used to sign in.</p>
-          </div>
-          <div class="profile-field">
-            <span class="profile-field-label">Display name</span>
-            <span class="profile-field-value" id="overviewDisplayName">—</span>
-            <p class="profile-description">What other players see on the leaderboard.</p>
-          </div>
-          <div class="profile-field">
-            <span class="profile-field-label">Best roll</span>
-            <span class="profile-field-value" id="overviewBestRoll">—</span>
-            <p class="profile-description">Highest EP result submitted to the leaderboard.</p>
-          </div>
-          <div class="profile-field">
-            <span class="profile-field-label">Total rolls</span>
-            <span class="profile-field-value" id="overviewRollCount">—</span>
-            <p class="profile-description">Leaderboard rolls recorded for this player.</p>
-          </div>
-        </div>
-        <div class="recent-rolls" id="recentRollsSection">
-          <h3 class="profile-section-title">Recent leaderboard rolls</h3>
-          <div id="recentRolls"></div>
-        </div>
-      </section>
       <a href="/" class="account-back-link">← Back to the game</a>
     </section>
 
