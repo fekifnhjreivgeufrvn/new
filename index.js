@@ -844,6 +844,30 @@ async function refreshAuthState() {
   updateAuthUI();
 }
 
+function ensureHeaderLinks() {
+  var headerActions = document.querySelector("header.site-header .header-actions");
+  if (!headerActions) return;
+  if (headerActions.querySelector("a.header-link")) return;
+  var themeButton = document.getElementById("themeToggle");
+  if (!themeButton) return;
+  headerActions.querySelectorAll("a[href='#leaderboard']").forEach(function (oldLink) {
+    oldLink.remove();
+  });
+  var navItems = [
+    { href: "/leaderboard", text: "Leaderboard" },
+    { href: "/", text: "Roll" },
+    { href: "/account", text: "Account", id: "accountNavLink" }
+  ];
+  navItems.forEach(function (item) {
+    var link = document.createElement("a");
+    link.href = item.href;
+    link.className = "header-link";
+    if (item.id) link.id = item.id;
+    link.textContent = item.text;
+    headerActions.insertBefore(link, themeButton);
+  });
+}
+
 async function openAccountOverview(playerName) {
   try {
     var url = "/api/player?name=" + encodeURIComponent(playerName);
@@ -851,6 +875,7 @@ async function openAccountOverview(playerName) {
     if (!response.ok) throw new Error("Player not found");
     var data = await response.json();
     populateAccountOverview(data);
+    document.documentElement.classList.remove("leaderboard-page", "detail-page");
     document.getElementById("accountCard").classList.add("hidden");
     document.getElementById("accountOverview").hidden = false;
     document.getElementById("accountPageTitle").textContent = data.name || data.username || "Player";
@@ -1774,14 +1799,18 @@ document.getElementById("detailBack").addEventListener("click", function () {
 });
 
 async function initializeDetailPage() {
-  var path = window.location.pathname;
+  document.documentElement.classList.remove("leaderboard-page", "account-page", "detail-page");
+  var path = window.location.pathname.replace(/\/+$/, "");
+  if (path === "") path = "/";
   if (path === "/leaderboard") {
     document.documentElement.classList.add("leaderboard-page");
+    document.documentElement.classList.remove("account-page", "detail-page");
     document.title = "Global Leaderboard — SixRoll";
     return false;
   }
   if (path === "/account") {
     document.documentElement.classList.add("account-page");
+    document.documentElement.classList.remove("leaderboard-page", "detail-page");
     document.title = "Your Account — SixRoll";
     document.getElementById("accountCard").classList.remove("hidden");
     document.getElementById("accountOverview").hidden = true;
@@ -1789,6 +1818,7 @@ async function initializeDetailPage() {
   }
   if (path === "/player") {
     document.documentElement.classList.add("account-page");
+    document.documentElement.classList.remove("leaderboard-page", "detail-page");
     document.title = "Player Account — SixRoll";
     document.getElementById("accountOverview").hidden = true;
     var name = new URLSearchParams(window.location.search).get("name");
@@ -2016,6 +2046,7 @@ if (isAdminEnabled()) setAdminPanel(true);
 updateUnlimitedUI();
 syncCooldownUI();
 tickCooldownText();
+ensureHeaderLinks();
 refreshAuthState().then(function () {
   initializeDetailPage().then(function (isDetailPage) {
     if (!isDetailPage) loadLeaderboard();
