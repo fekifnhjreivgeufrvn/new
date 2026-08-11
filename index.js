@@ -146,14 +146,38 @@ const HTML_PAGE = `<!DOCTYPE html>
   .roll-rarity { display: inline-flex; min-height: 24px; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid currentColor; border-radius: 999px; font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: 0; transition: opacity .35s ease, color .35s ease, background .35s ease; }
   .roll-rarity.show { opacity: 1; }
 
-  .account-page-wrap { max-width: 520px; padding-top: 68px; }
+  .account-page-wrap { max-width: 980px; padding-top: 72px; display: grid; gap: 24px; }
+  .account-grid { display: grid; grid-template-columns: minmax(280px, 360px) minmax(360px, 1fr); gap: 24px; align-items: start; }
   .account-card {
-    margin: 0 auto; max-width: 520px; padding: 26px 24px; border: 1px solid var(--border); border-radius: 22px;
+    width: 100%; padding: 28px 24px; border: 1px solid var(--border); border-radius: 22px;
     background: var(--card-bg); box-shadow: 0 24px 60px -32px rgba(0,0,0,.28);
     display: grid; gap: 18px;
   }
-  .auth-title { margin: 0 0 8px; font-size: .9rem; font-weight: 700; }
-  .auth-hint { margin: 0 0 12px; color: var(--text-3); font-size: .82rem; line-height: 1.5; }
+  .auth-title { margin: 0 0 8px; font-size: .95rem; font-weight: 700; }
+  .auth-hint { margin: 0 0 14px; color: var(--text-3); font-size: .86rem; line-height: 1.55; }
+  #accountOverview[hidden] { display: none; }
+  .profile-overview { width: 100%; padding: 26px 22px; border: 1px solid var(--border); border-radius: 22px; background: var(--surface); box-shadow: 0 18px 50px -36px rgba(0,0,0,.25); }
+  .profile-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+  .profile-meta { display: flex; align-items: center; gap: 14px; }
+  .profile-title-block { display: grid; gap: 6px; }
+  .profile-title { margin: 0; font-size: 1.35rem; font-weight: 800; }
+  .profile-subtitle { margin: 0; color: var(--text-2); font-size: .94rem; }
+    .profile-stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .account-page-wrap.public-profile .account-grid { grid-template-columns: 1fr; }
+  .account-page-wrap.public-profile .account-card { display: none; }
+  .account-page-wrap.public-profile .profile-overview { grid-column: 1 / -1; }
+  .profile-stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .profile-field { border-radius: 18px; background: var(--surface-2); border: 1px solid var(--border); padding: 18px; }
+  .profile-field-label { display: block; color: var(--text-3); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
+  .profile-field-value { display: block; font-size: 1.12rem; font-weight: 700; color: var(--text); }
+  .recent-rolls { display: grid; gap: 14px; }
+  .recent-rolls #recentRolls { display: grid; gap: 12px; }
+  .recent-roll { display: grid; gap: 6px; padding: 16px 18px; border-radius: 18px; background: var(--surface-2); border: 1px solid var(--border); }
+  .recent-roll-word { font-size: 1rem; font-weight: 700; letter-spacing: .04em; margin-bottom: 2px; }
+  .recent-roll-meta { display: flex; flex-wrap: wrap; gap: 10px; color: var(--text-2); font-size: .82rem; }
+  .profile-panel { width: 100%; }
+  .account-back-link { display: inline-flex; justify-content: center; width: 100%; max-width: 320px; margin: 0 auto; padding: 12px 0; border-radius: 999px; border: 1px solid transparent; background: rgba(109,94,247,.06); color: var(--accent); font-weight: 700; text-decoration: none; transition: background .2s ease, border-color .2s ease; }
+  .account-back-link:hover { background: rgba(109,94,247,.12); border-color: var(--accent); }
   .auth-controls { display: flex; gap: 8px; margin-top: 12px; }
   .auth-form { display: flex; flex-direction: column; gap: 10px; }
   .auth-input {
@@ -428,7 +452,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   html.leaderboard-page .leaderboard { margin-top: 0; }
   html:not(.leaderboard-page):not(.detail-page) .leaderboard { display: none; }
   html.account-page .hero-card, html.account-page .result-card, html.account-page .leaderboard, html.account-page .detail-card, html.account-page .admin-panel { display: none; }
-  html.account-page .container { max-width: 400px; padding-top: 64px; }
+  html.account-page .container { max-width: 980px; padding-top: 72px; }
   html:not(.account-page) .account-page-wrap { display: none; }
 
   /* ---------- account page ---------- */
@@ -547,82 +571,107 @@ const HTML_PAGE = `<!DOCTYPE html>
         <h1 class="account-page-title" id="accountPageTitle">Sign in</h1>
         <p class="account-page-subtitle" id="accountPageSubtitle">Save your rolls and claim your spot on the leaderboard.</p>
       </div>
-      <section class="account-card" aria-label="Account">
-        <div id="authSignedOut">
-          <div class="auth-form">
-            <input id="usernameInput" class="auth-input" type="text" autocomplete="username" placeholder="Username">
-            <input id="passwordInput" class="auth-input" type="password" autocomplete="current-password" placeholder="Password">
-          </div>
-          <button id="loginBtn" class="auth-btn auth-btn-block" type="button">Log in</button>
-          <div class="auth-divider"><span>or</span></div>
-          <button id="showRegisterBtn" class="auth-btn-secondary auth-btn-block" type="button">Create an account</button>
-          <div id="registerPanel" style="display:none;margin-top:16px;border-top:1px dashed var(--border);padding-top:16px;">
-            <p class="auth-hint">Takes a few seconds — no email required.</p>
+      <div class="account-grid">
+        <section class="account-card" aria-label="Account">
+          <div id="authSignedOut">
             <div class="auth-form">
-              <input id="regUsernameInput" class="auth-input" type="text" placeholder="Choose a username">
-              <input id="regPasswordInput" class="auth-input" type="password" placeholder="Choose a password">
-              <input id="regNameInput" class="auth-input" type="text" placeholder="Display name (optional)">
+              <input id="usernameInput" class="auth-input" type="text" autocomplete="username" placeholder="Username">
+              <input id="passwordInput" class="auth-input" type="password" autocomplete="current-password" placeholder="Password">
             </div>
-            <div style="display:flex;gap:8px;margin-top:10px;">
-              <button id="registerBtn" class="auth-btn">Create account</button>
-              <button id="hideRegisterBtn" class="auth-btn-secondary">Cancel</button>
+            <button id="loginBtn" class="auth-btn auth-btn-block" type="button">Log in</button>
+            <div class="auth-divider"><span>or</span></div>
+            <button id="showRegisterBtn" class="auth-btn-secondary auth-btn-block" type="button">Create an account</button>
+            <div id="registerPanel" style="display:none;margin-top:16px;border-top:1px dashed var(--border);padding-top:16px;">
+              <p class="auth-hint">Takes a few seconds — no email required.</p>
+              <div class="auth-form">
+                <input id="regUsernameInput" class="auth-input" type="text" placeholder="Choose a username">
+                <input id="regPasswordInput" class="auth-input" type="password" placeholder="Choose a password">
+                <input id="regNameInput" class="auth-input" type="text" placeholder="Display name (optional)">
+              </div>
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <button id="registerBtn" class="auth-btn">Create account</button>
+                <button id="hideRegisterBtn" class="auth-btn-secondary">Cancel</button>
+              </div>
             </div>
           </div>
-        </div>
-        <div id="authSignedIn" hidden>
-          <div class="auth-profile">
-            <div class="auth-avatar" id="authAvatar" aria-hidden="true"></div>
-            <div>
-              <div class="auth-email" id="accountEmail"></div>
-              <div class="auth-subtitle">You're signed in</div>
+          <div id="authSignedIn" hidden>
+            <div class="auth-profile">
+              <div class="auth-avatar" id="authAvatar" aria-hidden="true"></div>
+              <div>
+                <div class="auth-email" id="accountEmail"></div>
+                <div class="auth-subtitle">You're signed in</div>
+              </div>
+            </div>
+            <div class="name-field">
+              <label for="accountNameInput">Display name</label>
+              <input id="accountNameInput" maxlength="20" placeholder="Set your public name">
+            </div>
+            <div class="account-actions">
+              <button id="editProfileBtn" class="auth-btn-secondary" type="button">Edit profile</button>
+              <button id="saveNameBtn" class="auth-btn" type="button" disabled>Save profile</button>
+              <button id="signOutBtn" class="auth-btn-secondary" type="button">Sign out</button>
             </div>
           </div>
-          <div class="name-field">
-            <label for="accountNameInput">Display name</label>
-            <input id="accountNameInput" maxlength="20" placeholder="Set your public name">
-          </div>
-          <div class="account-actions">
-            <button id="editProfileBtn" class="auth-btn-secondary" type="button">Edit profile</button>
-            <button id="saveNameBtn" class="auth-btn" type="button" disabled>Save profile</button>
-            <button id="signOutBtn" class="auth-btn-secondary" type="button">Sign out</button>
-          </div>
-        </div>
-        <div class="profile-overview" id="accountOverview" hidden>
-          <div class="profile-overview-head">
+          <div id="authStatus" class="auth-status" aria-live="polite"></div>
+        </section>
+        <section class="profile-overview profile-panel" id="accountOverview" hidden>
+          <div class="profile-header">
             <div class="auth-avatar" id="overviewAvatar" aria-hidden="true"></div>
-            <div>
-              <h2 class="profile-summary-title" id="overviewTitle">Player overview</h2>
-              <p class="profile-summary-note" id="overviewSubtitle">Account stats, best results, and recent activity.</p>
+            <div class="profile-title-block">
+              <h2 class="profile-title" id="overviewTitle">Player overview</h2>
+              <p class="profile-subtitle" id="overviewSubtitle">Account stats, best results, and recent leaderboard activity.</p>
             </div>
           </div>
-          <div class="profile-field-grid">
+          <div class="profile-stats-grid">
             <div class="profile-field">
-              <span class="profile-field-label">Username</span>
+              <span class="profile-field-label">Account</span>
               <span class="profile-field-value" id="overviewUsername">—</span>
-              <p class="profile-description">The unique identifier used to sign in.</p>
             </div>
             <div class="profile-field">
               <span class="profile-field-label">Display name</span>
               <span class="profile-field-value" id="overviewDisplayName">—</span>
-              <p class="profile-description">What other players see on the leaderboard.</p>
             </div>
             <div class="profile-field">
-              <span class="profile-field-label">Best roll</span>
+              <span class="profile-field-label">Best leaderboard roll</span>
               <span class="profile-field-value" id="overviewBestRoll">—</span>
-              <p class="profile-description">Highest EP result submitted to the leaderboard.</p>
             </div>
             <div class="profile-field">
-              <span class="profile-field-label">Total rolls</span>
+              <span class="profile-field-label">Leaderboard rolls</span>
               <span class="profile-field-value" id="overviewRollCount">—</span>
-              <p class="profile-description">Leaderboard rolls recorded for this player.</p>
             </div>
           </div>
           <div class="recent-rolls" id="recentRollsSection">
-            <h3 class="profile-section-title">Recent leaderboard rolls</h3>
+            <h3 class="profile-section-title">Latest leaderboard rolls</h3>
             <div id="recentRolls"></div>
           </div>
+        </section>
+      </div>
+      <a href="/" class="account-back-link">← Back to the game</a>
+          <div class="profile-field">
+            <span class="profile-field-label">Username</span>
+            <span class="profile-field-value" id="overviewUsername">—</span>
+            <p class="profile-description">The unique identifier used to sign in.</p>
+          </div>
+          <div class="profile-field">
+            <span class="profile-field-label">Display name</span>
+            <span class="profile-field-value" id="overviewDisplayName">—</span>
+            <p class="profile-description">What other players see on the leaderboard.</p>
+          </div>
+          <div class="profile-field">
+            <span class="profile-field-label">Best roll</span>
+            <span class="profile-field-value" id="overviewBestRoll">—</span>
+            <p class="profile-description">Highest EP result submitted to the leaderboard.</p>
+          </div>
+          <div class="profile-field">
+            <span class="profile-field-label">Total rolls</span>
+            <span class="profile-field-value" id="overviewRollCount">—</span>
+            <p class="profile-description">Leaderboard rolls recorded for this player.</p>
+          </div>
         </div>
-        <div id="authStatus" class="auth-status" aria-live="polite"></div>
+        <div class="recent-rolls" id="recentRollsSection">
+          <h3 class="profile-section-title">Recent leaderboard rolls</h3>
+          <div id="recentRolls"></div>
+        </div>
       </section>
       <a href="/" class="account-back-link">← Back to the game</a>
     </section>
@@ -847,6 +896,10 @@ function updateAuthUI() {
     if (pageTitle) pageTitle.textContent = "Sign in";
     if (pageSubtitle) pageSubtitle.textContent = "Save your rolls and claim your spot on the leaderboard.";
     if (navLink) navLink.textContent = "Account";
+    var overviewEl = document.getElementById("accountOverview");
+    if (overviewEl && window.location.pathname === "/account") {
+      overviewEl.hidden = true;
+    }
   }
 }
 
@@ -861,7 +914,13 @@ async function refreshAuthState() {
   }
   updateAuthUI();
   if (window.location.pathname.startsWith("/account")) {
-    initializeAccountOverview(getAccountPathName()).catch(function () {});
+    var explicitName = getAccountPathName();
+    if (authState.user || explicitName) {
+      initializeAccountOverview(explicitName).catch(function () {});
+    } else {
+      var overviewEl = document.getElementById("accountOverview");
+      if (overviewEl) overviewEl.hidden = true;
+    }
   }
 }
 
@@ -923,40 +982,64 @@ async function initializeAccountOverview(explicitName) {
   var signedIn = !!authState.user;
   var signedOutEl = document.getElementById("authSignedOut");
   var signedInEl = document.getElementById("authSignedIn");
+  var pageWrap = document.getElementById("accountPageWrap");
+  var accountCard = document.querySelector(".account-card");
+  var overviewEl = document.getElementById("accountOverview");
   var pageTitle = document.getElementById("accountPageTitle");
   var pageSubtitle = document.getElementById("accountPageSubtitle");
+
+  if (pageWrap) {
+    pageWrap.classList.toggle("public-profile", !!pathName && !isSelf);
+  }
+
   if (pathName) {
+    var currentUserName = authState.user ? (authState.user.name || authState.user.email || "").toLowerCase() : "";
+    var targetName = playerName.toLowerCase();
+    var isCurrentUser = signedIn && currentUserName === targetName;
+
     if (signedOutEl) signedOutEl.hidden = true;
-    if (signedInEl) signedInEl.hidden = true;
-    if (pageTitle) pageTitle.textContent = "Player overview";
-    if (pageSubtitle) pageSubtitle.textContent = "View leaderboard stats for " + escapeHtml(playerName) + ".";
+    if (signedInEl) signedInEl.hidden = !isCurrentUser;
+    if (accountCard) accountCard.hidden = !isCurrentUser;
+    if (overviewEl) overviewEl.hidden = isCurrentUser;
+
+    if (isCurrentUser) {
+      if (pageTitle) pageTitle.textContent = "Your account";
+      if (pageSubtitle) pageSubtitle.textContent = "Manage your display name, or sign out below.";
+    } else {
+      if (pageTitle) pageTitle.textContent = "Player profile";
+      if (pageSubtitle) pageSubtitle.textContent = "Public leaderboard stats for " + escapeHtml(playerName) + ".";
+    }
   } else if (signedIn) {
     if (signedOutEl) signedOutEl.hidden = true;
     if (signedInEl) signedInEl.hidden = false;
+    if (accountCard) accountCard.hidden = false;
+    if (overviewEl) overviewEl.hidden = true;
     if (pageTitle) pageTitle.textContent = "Your account";
     if (pageSubtitle) pageSubtitle.textContent = "Manage your display name, or sign out below.";
   } else {
     if (signedOutEl) signedOutEl.hidden = false;
     if (signedInEl) signedInEl.hidden = true;
+    if (accountCard) accountCard.hidden = false;
+    if (overviewEl) overviewEl.hidden = true;
     if (pageTitle) pageTitle.textContent = "Sign in";
     if (pageSubtitle) pageSubtitle.textContent = "Save your rolls and claim your spot on the leaderboard.";
   }
-  var overviewEl = document.getElementById("accountOverview");
+
+  if (!playerName) {
+    return;
+  }
+
   if (overviewEl) {
     overviewEl.hidden = true;
   }
-  if (!playerName) {
-    if (overviewEl) overviewEl.hidden = true;
-    return;
-  }
+
   try {
     var response = await fetch("/api/player/" + encodeURIComponent(playerName));
     if (!response.ok) throw new Error("Player not found");
     var summary = await response.json();
     renderPlayerOverview(summary, isSelf && signedIn);
   } catch (e) {
-    var overview = document.getElementById("accountOverview");
-    if (overview) overview.hidden = true;
+    if (overviewEl) overviewEl.hidden = true;
     setAuthStatus("Unable to load player overview.", "error");
   }
 }
