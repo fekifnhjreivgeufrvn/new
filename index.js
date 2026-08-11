@@ -142,26 +142,37 @@ const HTML_PAGE = `<!DOCTYPE html>
   .roll-rarity.show { opacity: 1; }
 
   .account-card {
-    margin: 0 auto 20px; max-width: 320px; padding: 16px; border: 1px solid var(--border); border-radius: 16px;
+    margin: 0 auto; max-width: 360px; padding: 22px; border: 1px solid var(--border); border-radius: 16px;
     background: var(--card-bg); box-shadow: 0 16px 40px -24px rgba(0,0,0,.35);
   }
   .auth-title { margin: 0 0 8px; font-size: .9rem; font-weight: 700; }
-  .auth-hint { margin: 8px 0 0; color: var(--text-3); font-size: .78rem; line-height: 1.45; }
+  .auth-hint { margin: 0 0 12px; color: var(--text-3); font-size: .82rem; line-height: 1.5; }
   .auth-controls { display: flex; gap: 8px; margin-top: 12px; }
+  .auth-form { display: flex; flex-direction: column; gap: 10px; }
   .auth-input {
-    flex: 1; border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
-    color: var(--text); font: inherit; padding: 10px 12px; min-width: 0;
+    flex: 1; width: 100%; border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+    color: var(--text); font: inherit; padding: 11px 13px; min-width: 0;
   }
   .auth-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
   .auth-btn, .auth-btn-secondary {
     border: 1px solid var(--accent); background: var(--accent); color: var(--accent-contrast);
-    border-radius: 10px; padding: 10px 12px; font: 700 .82rem inherit; cursor: pointer;
+    border-radius: 10px; padding: 11px 14px; font: 700 .85rem inherit; cursor: pointer;
+    transition: transform .15s ease, opacity .15s ease;
   }
+  .auth-btn:hover, .auth-btn-secondary:hover { opacity: .92; }
+  .auth-btn:active, .auth-btn-secondary:active { transform: scale(.98); }
   .auth-btn-secondary { background: var(--surface); color: var(--text-2); border-color: var(--border); }
-  .auth-profile { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-  .auth-email { font-weight: 700; font-size: .9rem; }
+  .auth-btn-block { width: 100%; margin-top: 12px; }
+  .auth-divider { display: flex; align-items: center; gap: 10px; margin: 18px 0; color: var(--text-3); font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+  .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  .auth-profile { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .auth-avatar {
+    width: 42px; height: 42px; flex-shrink: 0; border-radius: 50%; background: var(--accent); color: var(--accent-contrast);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.05rem;
+  }
+  .auth-email { font-weight: 700; font-size: .92rem; }
   .auth-subtitle { color: var(--text-3); font-size: .76rem; margin-top: 2px; }
-  .account-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .account-actions { display: flex; gap: 8px; margin-top: 16px; }
   .name-field {
     display: flex; align-items: center; gap: 10px;
     background: transparent; border: 0; border-bottom: 1px solid var(--soft-border); border-radius: 0;
@@ -349,6 +360,20 @@ const HTML_PAGE = `<!DOCTYPE html>
   html.leaderboard-page .container { max-width: 720px; padding-top: 34px; }
   html.leaderboard-page .leaderboard { margin-top: 0; }
   html:not(.leaderboard-page):not(.detail-page) .leaderboard { display: none; }
+  html.account-page .hero-card, html.account-page .result-card, html.account-page .leaderboard, html.account-page .detail-card, html.account-page .admin-panel { display: none; }
+  html.account-page .container { max-width: 400px; padding-top: 64px; }
+  html:not(.account-page) .account-page-wrap { display: none; }
+
+  /* ---------- account page ---------- */
+  .account-page-head { text-align: center; margin: 0 0 22px; }
+  .account-page-emoji { display: inline-block; font-size: 1.9rem; margin-bottom: 8px; animation: diceFloat 4s ease-in-out infinite; }
+  .account-page-title { margin: 0 0 6px; font-size: 1.3rem; font-weight: 800; }
+  .account-page-subtitle { margin: 0; color: var(--text-2); font-size: .85rem; line-height: 1.55; }
+  .account-back-link {
+    display: block; text-align: center; margin-top: 20px; color: var(--text-3); font-size: .8rem;
+    text-decoration: none; font-weight: 600;
+  }
+  .account-back-link:hover { color: var(--text-2); }
   .detail-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 7px 11px; cursor: pointer; font: 600 .78rem inherit; }
   .detail-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 14px 0 4px; }
   .detail-word { font: 700 1.45rem "Space Mono", monospace; }
@@ -409,6 +434,7 @@ const HTML_PAGE = `<!DOCTYPE html>
     <div class="header-actions">
       <a href="/leaderboard" class="header-link">Leaderboard</a>
       <a href="/" class="header-link">Roll</a>
+      <a href="/account" class="header-link" id="accountNavLink">Account</a>
       <button id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">
         <span class="theme-icon-moon">🌙</span><span class="theme-icon-sun">☀️</span>
       </button>
@@ -418,52 +444,6 @@ const HTML_PAGE = `<!DOCTYPE html>
   <main class="container">
     <section class="hero-card">
       <p class="hero-tag">Roll six random letters. Score badges for patterns and real words hidden in your pull.</p>
-
-      <section class="account-card" aria-label="Account settings">
-        <div id="authSignedOut">
-          <p class="auth-title">Sign in</p>
-          <p class="auth-hint">Choose magic link or sign in with a username and password.</p>
-          <div class="auth-controls">
-            <input id="emailInput" class="auth-input" type="email" inputmode="email" autocomplete="email" placeholder="you@gmail.com">
-            <button id="magicLinkBtn" class="auth-btn" type="button">Send link</button>
-          </div>
-          <div style="margin-top:10px;text-align:center;color:var(--text-2);">or</div>
-          <div class="auth-controls" style="margin-top:8px;">
-            <input id="usernameInput" class="auth-input" type="text" autocomplete="username" placeholder="username">
-            <input id="passwordInput" class="auth-input" type="password" autocomplete="current-password" placeholder="password">
-          </div>
-          <div style="display:flex;gap:8px;margin-top:8px;">
-            <button id="loginBtn" class="auth-btn" type="button">Log in</button>
-            <button id="showRegisterBtn" class="auth-btn-secondary" type="button">Register</button>
-          </div>
-          <div id="registerPanel" style="display:none;margin-top:12px;border-top:1px dashed var(--border);padding-top:12px;">
-            <input id="regUsernameInput" class="auth-input" type="text" placeholder="choose a username">
-            <input id="regPasswordInput" class="auth-input" type="password" placeholder="choose a password">
-            <input id="regNameInput" class="auth-input" type="text" placeholder="display name (optional)">
-            <div style="display:flex;gap:8px;margin-top:8px;">
-              <button id="registerBtn" class="auth-btn">Create account</button>
-              <button id="hideRegisterBtn" class="auth-btn-secondary">Cancel</button>
-            </div>
-          </div>
-        </div>
-        <div id="authSignedIn" hidden>
-          <div class="auth-profile">
-            <div>
-              <div class="auth-email" id="accountEmail"></div>
-              <div class="auth-subtitle">Signed in with a magic link</div>
-            </div>
-            <button id="signOutBtn" class="auth-btn-secondary" type="button">Sign out</button>
-          </div>
-          <div class="name-field">
-            <label for="accountNameInput">Display name</label>
-            <input id="accountNameInput" maxlength="20" placeholder="Set your public name">
-          </div>
-          <div class="account-actions">
-            <button id="saveNameBtn" class="auth-btn" type="button">Save profile</button>
-          </div>
-        </div>
-        <div id="authStatus" class="auth-status" aria-live="polite"></div>
-      </section>
 
       <div class="tiles" id="tiles"></div>
       <div class="roll-confirmation">
@@ -478,6 +458,56 @@ const HTML_PAGE = `<!DOCTYPE html>
         </div>
         <div class="unlimited-badge" id="unlimitedBadge">Test mode — unlimited rolls</div>
       </div>
+    </section>
+
+    <section class="account-page-wrap" id="accountPageWrap">
+      <div class="account-page-head">
+        <span class="account-page-emoji" aria-hidden="true">🎲</span>
+        <h1 class="account-page-title" id="accountPageTitle">Sign in</h1>
+        <p class="account-page-subtitle" id="accountPageSubtitle">Save your rolls and claim your spot on the leaderboard.</p>
+      </div>
+      <section class="account-card" aria-label="Account">
+        <div id="authSignedOut">
+          <div class="auth-form">
+            <input id="usernameInput" class="auth-input" type="text" autocomplete="username" placeholder="Username">
+            <input id="passwordInput" class="auth-input" type="password" autocomplete="current-password" placeholder="Password">
+          </div>
+          <button id="loginBtn" class="auth-btn auth-btn-block" type="button">Log in</button>
+          <div class="auth-divider"><span>or</span></div>
+          <button id="showRegisterBtn" class="auth-btn-secondary auth-btn-block" type="button">Create an account</button>
+          <div id="registerPanel" style="display:none;margin-top:16px;border-top:1px dashed var(--border);padding-top:16px;">
+            <p class="auth-hint">Takes a few seconds — no email required.</p>
+            <div class="auth-form">
+              <input id="regUsernameInput" class="auth-input" type="text" placeholder="Choose a username">
+              <input id="regPasswordInput" class="auth-input" type="password" placeholder="Choose a password">
+              <input id="regNameInput" class="auth-input" type="text" placeholder="Display name (optional)">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <button id="registerBtn" class="auth-btn">Create account</button>
+              <button id="hideRegisterBtn" class="auth-btn-secondary">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div id="authSignedIn" hidden>
+          <div class="auth-profile">
+            <div class="auth-avatar" id="authAvatar" aria-hidden="true"></div>
+            <div>
+              <div class="auth-email" id="accountEmail"></div>
+              <div class="auth-subtitle">You're signed in</div>
+            </div>
+          </div>
+          <div class="name-field">
+            <label for="accountNameInput">Display name</label>
+            <input id="accountNameInput" maxlength="20" placeholder="Set your public name">
+          </div>
+          <div class="account-actions">
+            <button id="saveNameBtn" class="auth-btn" type="button">Save profile</button>
+            <button id="signOutBtn" class="auth-btn-secondary" type="button">Sign out</button>
+          </div>
+        </div>
+        <div id="authStatus" class="auth-status" aria-live="polite"></div>
+      </section>
+      <a href="/" class="account-back-link">← Back to the game</a>
     </section>
 
     <section class="result-card" id="result">
@@ -646,16 +676,30 @@ function updateAuthUI() {
   var signedIn = document.getElementById("authSignedIn");
   var emailEl = document.getElementById("accountEmail");
   var nameInput = document.getElementById("accountNameInput");
+  var pageTitle = document.getElementById("accountPageTitle");
+  var pageSubtitle = document.getElementById("accountPageSubtitle");
+  var avatar = document.getElementById("authAvatar");
+  var navLink = document.getElementById("accountNavLink");
   if (!signedOut || !signedIn || !emailEl || !nameInput) return;
   if (authState.user) {
     signedOut.hidden = true;
     signedIn.hidden = false;
     emailEl.textContent = authState.user.email || "Signed in";
     nameInput.value = authState.user.name || "";
+    if (pageTitle) pageTitle.textContent = "Your account";
+    if (pageSubtitle) pageSubtitle.textContent = "Manage your display name, or sign out below.";
+    if (avatar) {
+      var initial = (authState.user.name || authState.user.email || "?").trim().charAt(0).toUpperCase();
+      avatar.textContent = initial || "?";
+    }
+    if (navLink) navLink.textContent = "Hi, " + (authState.user.name || (authState.user.email || "there").split("@")[0]);
   } else {
     signedOut.hidden = false;
     signedIn.hidden = true;
     nameInput.value = "";
+    if (pageTitle) pageTitle.textContent = "Sign in";
+    if (pageSubtitle) pageSubtitle.textContent = "Save your rolls and claim your spot on the leaderboard.";
+    if (navLink) navLink.textContent = "Account";
   }
 }
 
@@ -670,30 +714,6 @@ async function refreshAuthState() {
   }
   updateAuthUI();
 }
-
-document.getElementById("magicLinkBtn").addEventListener("click", async function () {
-  var input = document.getElementById("emailInput");
-  var email = (input.value || "").trim().toLowerCase();
-  if (!email || !/^.+@gmail\.com$/i.test(email)) {
-    setAuthStatus("Please use a Gmail address to receive the sign-in link.", "error");
-    input.focus();
-    return;
-  }
-  setAuthStatus("Sending your magic link…", "");
-  try {
-    var response = await fetch("/api/auth/request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email })
-    });
-    var data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Unable to send the link");
-    setAuthStatus(data.message || "Check your Gmail inbox for the sign-in link.", "success");
-    input.value = "";
-  } catch (e) {
-    setAuthStatus(e.message || "Unable to send the link right now.", "error");
-  }
-});
 
 // Password login/register UI behavior
 document.getElementById("showRegisterBtn").addEventListener("click", function () {
@@ -1558,6 +1578,11 @@ async function initializeDetailPage() {
     document.title = "Global Leaderboard — SixRoll";
     return false;
   }
+  if (path === "/account") {
+    document.documentElement.classList.add("account-page");
+    document.title = "Your Account — SixRoll";
+    return true;
+  }
   var prefix = "/roll/";
   if (path.indexOf(prefix) !== 0) return false;
   document.documentElement.classList.add("detail-page");
@@ -1783,66 +1808,15 @@ const KV_KEY = "rolls";
 const MAX_ROLLS = 500;
 const AUTH_COOKIE = "sixroll_auth";
 const AUTH_USERS_KEY = "auth_users";
-const AUTH_MAGIC_LINKS_KEY = "auth_magic_links";
 const AUTH_SESSIONS_KEY = "auth_sessions";
-const MAGIC_LINK_TTL_SECONDS = 60 * 15;
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if ((url.pathname === "/" || url.pathname === "/leaderboard" || /^\/roll\/[A-Za-z]{6}$/.test(url.pathname)) && request.method === "GET") {
+    if ((url.pathname === "/" || url.pathname === "/leaderboard" || url.pathname === "/account" || /^\/roll\/[A-Za-z]{6}$/.test(url.pathname)) && request.method === "GET") {
       return new Response(HTML_PAGE, { headers: { "content-type": "text/html;charset=UTF-8" } });
-    }
-
-    if (url.pathname === "/api/auth/request" && request.method === "POST") {
-      let body;
-      try {
-        body = await request.json();
-      } catch {
-        return json({ error: "Invalid JSON" }, 400);
-      }
-      const email = String(body.email || "").trim().toLowerCase();
-      if (!/^.+@gmail\.com$/i.test(email)) return json({ error: "Use a Gmail address" }, 400);
-      const token = createToken();
-      const users = await getAuthUsers(env);
-      const existing = users.find((u) => u.email === email);
-      const user = existing || { email, name: "", createdAt: Date.now() };
-      if (!existing) users.push(user);
-      await env.PLAYERS.put(AUTH_USERS_KEY, JSON.stringify(users));
-      const link = `${url.origin}/auth/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
-      await env.PLAYERS.put(`${AUTH_MAGIC_LINKS_KEY}:${token}`, JSON.stringify({ email, expiresAt: Date.now() + MAGIC_LINK_TTL_SECONDS }));
-
-      if (env.RESEND_API_KEY && env.RESEND_FROM_EMAIL) {
-        try {
-          const response = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${env.RESEND_API_KEY}`
-            },
-            body: JSON.stringify({
-              from: env.RESEND_FROM_EMAIL,
-              to: [email],
-              subject: "Your SixRoll sign-in link",
-              text: `Use this link to sign in to SixRoll: ${link}`,
-              html: `<p>Click the link below to sign in to SixRoll.</p><p><a href="${link}">Sign in to SixRoll</a></p><p>If you didn’t request this, you can ignore it.</p>`
-            })
-          });
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Resend send failed", response.status, errorText);
-            return json({ error: "Unable to send the sign-in email right now." }, 500);
-          }
-          return json({ ok: true, message: "Check your Gmail inbox for the sign-in link." });
-        } catch (error) {
-          console.error("Resend send failed", error);
-          return json({ error: "Unable to send the sign-in email right now." }, 500);
-        }
-      }
-
-      return json({ ok: true, message: "Sign-in email delivery is not configured yet. Set RESEND_API_KEY and RESEND_FROM_EMAIL to enable it." }, 500);
     }
 
     // Username/password registration
@@ -1919,29 +1893,6 @@ export default {
     if (url.pathname === "/api/auth/logout" && request.method === "POST") {
       const cookie = serializeCookie(AUTH_COOKIE, "", { path: "/", maxAge: 0, httpOnly: true, secure: true, sameSite: "Lax" });
       return json({ ok: true }, 200, { "Set-Cookie": cookie });
-    }
-
-    if (url.pathname === "/auth/verify" && request.method === "GET") {
-      const token = String(url.searchParams.get("token") || "");
-      const email = String(url.searchParams.get("email") || "").toLowerCase();
-      const tokenKey = `${AUTH_MAGIC_LINKS_KEY}:${token}`;
-      const raw = await env.PLAYERS.get(tokenKey);
-      if (!raw) return new Response("Invalid or expired magic link", { status: 400 });
-      const payload = JSON.parse(raw);
-      if (payload.email !== email || payload.expiresAt <= Date.now()) {
-        await env.PLAYERS.delete(tokenKey);
-        return new Response("Invalid or expired magic link", { status: 400 });
-      }
-      await env.PLAYERS.delete(tokenKey);
-      const users = await getAuthUsers(env);
-      const existing = users.find((entry) => entry.email === email);
-      const user = existing || { email, name: "", createdAt: Date.now() };
-      if (!existing) users.push(user);
-      await env.PLAYERS.put(AUTH_USERS_KEY, JSON.stringify(users));
-      const sessionToken = createSessionToken(email);
-      await env.PLAYERS.put(`${AUTH_SESSIONS_KEY}:${sessionToken}`, JSON.stringify({ email, expiresAt: Date.now() + SESSION_TTL_SECONDS }));
-      const cookie = serializeCookie(AUTH_COOKIE, sessionToken, { httpOnly: true, secure: true, sameSite: "Lax", path: "/", maxAge: SESSION_TTL_SECONDS });
-      return new Response("Signed in. You can close this tab.", { status: 302, headers: { Location: "/", "Set-Cookie": cookie, "content-type": "text/plain;charset=UTF-8" } });
     }
 
     if (url.pathname === "/api/leaderboard" && request.method === "GET") {
@@ -2107,10 +2058,6 @@ async function getSessionUser(request, env) {
   }
 }
 
-function createToken() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
 function createSessionToken(email) {
   return `${email}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
 }
@@ -2131,4 +2078,3 @@ function json(data, status = 200, extraHeaders = {}) {
     headers: Object.assign({ "content-type": "application/json" }, extraHeaders)
   });
 }
-
