@@ -781,6 +781,114 @@ const HTML_PAGE = `<!DOCTYPE html>
     animation-duration: 2.2s;
   }
 
+
+  /* ---------- signed-in profile cleanup / alignment ---------- */
+  html.account-page.profile-mode .account-page-head { display:none !important; }
+  html.account-page.profile-mode .account-page-wrap {
+    width: min(100%, 680px);
+    max-width: 680px;
+    margin-inline: auto;
+    padding-top: 34px;
+    padding-left: 0;
+    padding-right: 0;
+    box-sizing: border-box;
+  }
+  html.account-page.profile-mode .account-page-wrap .account-card { display:none !important; }
+  html.account-page.profile-mode .account-page-wrap .account-grid {
+    display:block;
+    width:100%;
+  }
+  html.account-page.profile-mode .profile-overview {
+    display:block;
+    width:100%;
+    margin-inline:auto;
+  }
+  .profile-signout-btn {
+    border:1px solid var(--border);
+    background:var(--surface-2);
+    color:var(--text-2);
+    border-radius:8px;
+    padding:6px 10px;
+    cursor:pointer;
+    font:700 .68rem inherit;
+    transition:color .18s ease,border-color .18s ease,background .18s ease;
+  }
+  .profile-signout-btn:hover {
+    color:var(--accent);
+    border-color:var(--border-strong);
+    background:color-mix(in srgb,var(--accent) 7%,var(--surface-2));
+  }
+  .profile-roll-word {
+    font-family:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-weight:700;
+    letter-spacing:.035em;
+  }
+  .profile-roll-ep {
+    font-size:.68rem;
+    font-weight:700;
+    color:var(--text-3);
+    letter-spacing:.01em;
+  }
+  .profile-roll-rarity {
+    color:var(--badge-color);
+    font-size:.58rem;
+    font-weight:800;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+  .profile-best-word {
+    font-family:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-weight:800;
+    color:var(--badge-color,var(--text));
+    letter-spacing:.03em;
+  }
+  .profile-best-ep {
+    color:var(--text-2);
+    font-size:.7em;
+    font-weight:700;
+    letter-spacing:0;
+  }
+  .profile-best-stat.rarity-rare,
+  .profile-best-stat.rarity-epic {
+    box-shadow:0 0 20px -9px var(--badge-color);
+  }
+  .profile-best-stat.rarity-legendary,
+  .profile-best-stat.rarity-mythic,
+  .profile-best-stat.rarity-divine,
+  .profile-best-stat.rarity-cosmic {
+    background:linear-gradient(110deg,
+      color-mix(in srgb,var(--badge-color) 26%,var(--surface)),
+      color-mix(in srgb,var(--badge-color) 7%,var(--surface)),
+      color-mix(in srgb,var(--badge-color) 20%,var(--surface)));
+    background-size:180% 100%;
+    animation:badgeGradient 2.6s ease-in-out infinite;
+    box-shadow:0 0 24px -8px var(--badge-color);
+  }
+  .recent-roll.rarity-rare,
+  .recent-roll.rarity-epic {
+    box-shadow:0 0 18px -9px var(--badge-color);
+  }
+  .recent-roll.rarity-legendary,
+  .recent-roll.rarity-mythic,
+  .recent-roll.rarity-divine,
+  .recent-roll.rarity-cosmic {
+    background:linear-gradient(110deg,
+      color-mix(in srgb,var(--badge-color) 25%,var(--surface)),
+      color-mix(in srgb,var(--badge-color) 7%,var(--surface)),
+      color-mix(in srgb,var(--badge-color) 20%,var(--surface)));
+    background-size:180% 100%;
+    animation:badgeGradient 2.6s ease-in-out infinite;
+    box-shadow:0 0 24px -8px var(--badge-color);
+  }
+  @media(max-width:700px){
+    html.account-page.profile-mode .account-page-wrap{
+      width:min(100%,680px);
+      padding-left:14px;
+      padding-right:14px;
+      box-sizing:border-box;
+    }
+  }
+
   /* ---------- profile showcase ---------- */
   .account-page-wrap.public-profile{width:min(100%,720px);margin-inline:auto}
   .account-page-wrap.public-profile .account-grid{display:block;width:100%}
@@ -819,21 +927,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   @media(max-width:430px){.profile-display-name{font-size:1.35rem}.profile-identity .profile-subtitle{display:none}}
 
   @media (max-width: 760px) {
-    html.account-page .account-page-wrap.profile-active { width:min(100%,680px); max-width:680px; margin-inline:auto; }
-  html.account-page .account-page-wrap.profile-active .account-card { display:none !important; }
-  html.account-page .account-page-wrap.profile-active .account-page-head { display:none !important; }
-  html.account-page .account-page-wrap.profile-active + .result-card { display:none; }
-  html.account-page .container { box-sizing:border-box; }
-  .profile-roll-word { font-family:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:700; letter-spacing:.035em; }
-  .profile-roll-ep { font-family:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.68rem; font-weight:700; color:var(--text-3); opacity:.8; }
-  .profile-roll-rarity { font-size:.62rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--badge-color); }
-  .profile-best-stat.rarity-rare,.profile-best-stat.rarity-epic { box-shadow:0 0 20px -9px var(--badge-color); }
-  .profile-best-stat.rarity-legendary,.profile-best-stat.rarity-mythic,.profile-best-stat.rarity-divine,.profile-best-stat.rarity-cosmic { background:linear-gradient(110deg,color-mix(in srgb,var(--badge-color) 20%,var(--surface)),color-mix(in srgb,var(--badge-color) 5%,var(--surface)),color-mix(in srgb,var(--badge-color) 18%,var(--surface))); background-size:180% 100%; animation:badgeGradient 2.4s ease-in-out infinite; box-shadow:0 0 22px -7px var(--badge-color),inset 0 0 20px -14px var(--badge-color); }
-  .recent-roll.rarity-rare,.recent-roll.rarity-epic { box-shadow:0 0 18px -9px var(--badge-color); }
-  .recent-roll.rarity-legendary,.recent-roll.rarity-mythic,.recent-roll.rarity-divine,.recent-roll.rarity-cosmic { animation:badgeGradient 2.4s ease-in-out infinite; box-shadow:0 0 22px -7px var(--badge-color),inset 0 0 18px -14px var(--badge-color); }
-  .profile-signout-btn { appearance:none; border:1px solid var(--border); background:transparent; color:var(--text-3); border-radius:7px; padding:6px 10px; cursor:pointer; font:700 .68rem inherit; transition:.18s ease; }
-  .profile-signout-btn:hover { color:var(--accent); border-color:var(--border-strong); background:color-mix(in srgb,var(--accent) 6%,transparent); }
-  .account-page-wrap.profile-active {
+    .account-page-wrap.profile-active {
       width: min(100%, 680px);
       padding-inline: 14px;
     }
@@ -971,7 +1065,7 @@ const HTML_PAGE = `<!DOCTYPE html>
           </section>
         </section>
       </div>
-      <a href="#" class="account-back-link" id="accountBackLink">← Back to the game</a>
+      <a href="/" class="account-back-link">← Back to the game</a>
     </section>
 
     <section class="result-card" id="result">
@@ -1134,11 +1228,6 @@ function updateUnlimitedUI() {
 
 /* ================= auth ================= */
 var authState = { user: null };
-var AUTH_LOCAL_KEY = "sixroll_auth_user";
-function saveAuthLocal(user) { try { if (user) localStorage.setItem(AUTH_LOCAL_KEY, JSON.stringify({ username:user.username || user.name || "", name:user.name || "", email:user.email || "" })); } catch(e){} }
-function clearAuthLocal() { try { localStorage.removeItem(AUTH_LOCAL_KEY); } catch(e){} }
-function getAuthLocal() { try { var raw=localStorage.getItem(AUTH_LOCAL_KEY); return raw ? JSON.parse(raw) : null; } catch(e){ return null; } }
-
 
 function getName() {
   if (authState.user && authState.user.name) return authState.user.name;
@@ -1179,19 +1268,21 @@ function updateAuthUI() {
   var navLink = document.getElementById("accountNavLink");
   if (!signedOut || !signedIn || !emailEl || !nameInput) return;
   if (authState.user) {
+    document.documentElement.classList.add("profile-mode");
     signedOut.hidden = true;
     signedIn.hidden = false;
     emailEl.textContent = authState.user.email || "Signed in";
     nameInput.value = authState.user.name || "";
     setProfileEditMode(false);
-    if (pageTitle) pageTitle.textContent = "Your account";
-    if (pageSubtitle) pageSubtitle.textContent = "Manage your display name, or sign out below.";
+    if (pageTitle) pageTitle.textContent = authState.user.name || authState.user.email || "Profile";
+    if (pageSubtitle) pageSubtitle.textContent = "";
     if (avatar) {
       var initial = (authState.user.name || authState.user.email || "?").trim().charAt(0).toUpperCase();
       avatar.textContent = initial || "?";
     }
     if (navLink) navLink.textContent = "Hi, " + (authState.user.name || (authState.user.email || "there").split("@")[0]);
   } else {
+    document.documentElement.classList.remove("profile-mode");
     signedOut.hidden = false;
     signedIn.hidden = true;
     nameInput.value = "";
@@ -1212,7 +1303,6 @@ async function refreshAuthState() {
     if (!response.ok) throw new Error("Not signed in");
     var data = await response.json();
     authState.user = data.user || null;
-    if (authState.user) saveAuthLocal(authState.user);
   } catch (e) {
     authState.user = null;
   }
@@ -1262,7 +1352,9 @@ function renderPlayerOverview(summary, isCurrentUser) {
   if (bestRoll) {
     if (summary.bestRoll) {
       bestRoll.innerHTML = "<span class=\"profile-best-word\">" + escapeHtml(summary.bestRoll.word) + "</span> <span class=\"profile-best-ep\">" + Number(summary.bestRoll.ep || 0).toLocaleString() + " EP</span>";
-    } else bestRoll.textContent = "No leaderboard rolls yet";
+    } else {
+      bestRoll.textContent = "No leaderboard rolls yet";
+    }
   }
   if (rollCount) rollCount.textContent = String(summary.rollCount || 0);
   var totalEP = Number(summary.totalEP != null ? summary.totalEP : (summary.totalEp != null ? summary.totalEp : 0)) || 0;
@@ -1291,8 +1383,8 @@ function renderPlayerOverview(summary, isCurrentUser) {
         var main = document.createElement("div");
         main.className = "recent-roll-main";
         var recentTierLabel = tierForEP(roll.ep);
-        main.innerHTML = "<span class=\"recent-roll-word profile-roll-word\" style=\"color:" + colorForEP(roll.ep) + "\">" + escapeHtml(roll.word) + "</span>" +
-          "<span class=\"recent-roll-meta\"><span class=\"recent-roll-rarity profile-roll-rarity\" style=\"--badge-color:" + colorForEP(roll.ep) + "\">" + recentTierLabel + "</span><span class=\"recent-roll-ep profile-roll-ep\">" + Number(roll.ep || 0).toLocaleString() + " EP</span><span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
+        main.innerHTML = "<span class='recent-roll-word profile-roll-word' style='color:" + colorForEP(roll.ep) + "'>" + escapeHtml(roll.word) + "</span>" +
+          "<span class='recent-roll-meta'><span class='recent-roll-rarity profile-roll-rarity' style='--badge-color:" + colorForEP(roll.ep) + "'>" + recentTierLabel + "</span><span class='recent-roll-ep profile-roll-ep'>" + Number(roll.ep || 0).toLocaleString() + " EP</span>" + (roll.rank != null ? "<span>Rank #" + roll.rank + "</span>" : "") + "<span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
         item.appendChild(main);
         recentRolls.appendChild(item);
       });
@@ -1316,7 +1408,9 @@ async function initializeAccountOverview(explicitName) {
 
   if (pageWrap) {
     pageWrap.classList.toggle("public-profile", !!pathName && !isSelf);
+    pageWrap.classList.toggle("profile-mode", !!signedIn && isSelf);
   }
+  document.documentElement.classList.toggle("profile-mode", !!signedIn && isSelf);
 
   if (pathName) {
     var currentUserName = authState.user ? (authState.user.name || authState.user.email || "").toLowerCase() : "";
@@ -1445,6 +1539,7 @@ document.getElementById("loginBtn").addEventListener("click", async function () 
     var data = await response.json();
     if (!response.ok) throw new Error(data.error || "Login failed");
     await refreshAuthState();
+    if (authState.user) saveAuthLocal(authState.user);
     setAuthStatus("Signed in", "success");
     document.getElementById("usernameInput").value = "";
     document.getElementById("passwordInput").value = "";
@@ -1468,6 +1563,7 @@ document.getElementById("registerBtn").addEventListener("click", async function 
     var data = await response.json();
     if (!response.ok) throw new Error(data.error || "Registration failed");
     await refreshAuthState();
+    if (authState.user) saveAuthLocal(authState.user);
     setAuthStatus("Account created and signed in", "success");
     document.getElementById("registerPanel").style.display = "none";
   } catch (e) {
@@ -1515,6 +1611,7 @@ document.getElementById("signOutBtn").addEventListener("click", async function (
     await fetch("/api/auth/logout", { method: "POST" });
   } catch (e) {}
   authState.user = null;
+  clearAuthLocal();
   updateAuthUI();
   if (window.location.pathname.startsWith("/account")) {
     initializeAccountOverview().catch(function () {});
@@ -2543,28 +2640,20 @@ if (isAdminEnabled()) setAdminPanel(true);
 updateUnlimitedUI();
 syncCooldownUI();
 tickCooldownText();
-refreshAuthState().then(function () {
+document.addEventListener("click", function (event) {
+  var back = event.target && event.target.closest("#accountBackLink");
+  if (!back) return;
+  event.preventDefault();
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    window.location.assign("/");
+  }
+});\n\nrefreshAuthState().then(function () {
   initializeDetailPage().then(function (isDetailPage) {
     if (!isDetailPage) loadLeaderboard();
   });
 });
-
-
-document.addEventListener("click", function(event){
-  var back=event.target && event.target.closest("#accountBackLink");
-  if(!back) return;
-  event.preventDefault();
-  if(window.history.length>1) window.history.back(); else window.location.assign("/");
-});
-
-// Keep a local identity hint, but never trust it as authentication. The server session remains authoritative.
-(function restoreLocalAuthHint(){
-  var saved=getAuthLocal();
-  if(saved && !authState.user){
-    var usernameInput=document.getElementById("usernameInput");
-    if(usernameInput && saved.username) usernameInput.value=saved.username;
-  }
-})();
 </script>
 </body>
 </html>
@@ -2674,6 +2763,13 @@ export default {
       const normalized = playerName.toLowerCase();
       const playerRolls = rolls.filter((roll) => String(roll.name || "").toLowerCase() === normalized);
       const rollCount = playerRolls.length;
+      const totalEP = playerRolls.reduce((sum, roll) => sum + (Number(roll.ep) || 0), 0);
+      const ranked = rolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
+      const rankFor = (roll) => {
+        if (!roll) return null;
+        const index = ranked.findIndex((entry) => entry === roll);
+        return index >= 0 ? index + 1 : null;
+      };
       const bestRoll = playerRolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0))[0] || null;
       const recentRolls = playerRolls.slice().sort((a, b) => (Number(b.ts) || 0) - (Number(a.ts) || 0)).slice(0, 5);
       const users = await getAuthUsers(env);
@@ -2682,8 +2778,9 @@ export default {
         username: playerName,
         displayName: stored ? stored.name || "" : "",
         rollCount,
-        bestRoll: bestRoll ? { word: bestRoll.word, ep: bestRoll.ep, ts: bestRoll.ts } : null,
-        recentRolls: recentRolls.map((r) => ({ word: r.word, ep: r.ep, ts: r.ts }))
+        totalEP,
+        bestRoll: bestRoll ? { word: bestRoll.word, ep: bestRoll.ep, ts: bestRoll.ts, rank: rankFor(bestRoll) } : null,
+        recentRolls: recentRolls.map((r) => ({ word: r.word, ep: r.ep, ts: r.ts, rank: rankFor(r) }))
       });
     }
 
