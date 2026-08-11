@@ -465,6 +465,33 @@ const HTML_PAGE = `<!DOCTYPE html>
   html.account-page .container { max-width: 980px; padding-top: 72px; }
   html:not(.account-page) .account-page-wrap { display: none; }
 
+
+
+  const ACCOUNT_SESSION_KEY = "roll-account-session";
+
+  function saveAccountSession(account) {
+    try {
+      localStorage.setItem(ACCOUNT_SESSION_KEY, JSON.stringify(account));
+    } catch (e) {}
+  }
+
+  function loadAccountSession() {
+    try {
+      const raw = localStorage.getItem(ACCOUNT_SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function clearAccountSession() {
+    try { localStorage.removeItem(ACCOUNT_SESSION_KEY); } catch (e) {}
+  }
+
+  function setAccountProfileMode(enabled) {
+    document.documentElement.classList.toggle("profile-mode", !!enabled);
+  }
+
   /* ---------- account page ---------- */
   .account-page-head { text-align: center; margin: 0 0 22px; }
   .account-page-emoji { display: inline-block; font-size: 1.9rem; margin-bottom: 8px; animation: diceFloat 4s ease-in-out infinite; }
@@ -876,7 +903,7 @@ const HTML_PAGE = `<!DOCTYPE html>
         <p class="account-page-subtitle" id="accountPageSubtitle">Save your rolls and claim your spot on the leaderboard.</p>
       </div>
       <div class="account-grid">
-        <section class="account-card" aria-label="Account">
+        <section class="account-card auth-panel" aria-label="Account">
           <div id="authSignedOut">
             <div class="auth-form">
               <input id="usernameInput" class="auth-input" type="text" autocomplete="username" placeholder="Username">
@@ -957,7 +984,7 @@ const HTML_PAGE = `<!DOCTYPE html>
           </section>
         </section>
       </div>
-      <a href="/" class="account-back-link">← Back to the game</a>
+      <a href="#" class="account-back-link" id="accountBackLink">← Back to the game</a>
     </section>
 
     <section class="result-card" id="result">
@@ -2823,3 +2850,27 @@ function json(data, status = 200, extraHeaders = {}) {
     headers: Object.assign({ "content-type": "application/json" }, extraHeaders)
   });
 }
+
+  
+  document.addEventListener("click", function (event) {
+    const back = event.target && event.target.closest("#accountBackLink");
+    if (!back) return;
+    event.preventDefault();
+    if (window.history.length > 1) window.history.back();
+    else window.location.assign("/");
+  });
+
+window.addEventListener("DOMContentLoaded", function () {
+    const saved = loadAccountSession();
+    if (!saved) return;
+    try {
+      if (typeof currentUser !== "undefined") currentUser = saved;
+      const signedIn = document.getElementById("authSignedIn");
+      const signedOut = document.getElementById("authSignedOut");
+      if (signedIn) signedIn.hidden = false;
+      if (signedOut) signedOut.hidden = true;
+      setAccountProfileMode(true);
+      if (typeof renderAccountProfile === "function") renderAccountProfile(saved);
+    } catch (e) {}
+  });
+
