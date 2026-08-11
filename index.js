@@ -421,11 +421,29 @@ const HTML_PAGE = `<!DOCTYPE html>
 
       <section class="account-card" aria-label="Account settings">
         <div id="authSignedOut">
-          <p class="auth-title">Sign in with magic link</p>
-          <p class="auth-hint">No password needed. Use your Gmail address and we’ll send a sign-in link that drops you straight into your account.</p>
+          <p class="auth-title">Sign in</p>
+          <p class="auth-hint">Choose magic link or sign in with a username and password.</p>
           <div class="auth-controls">
             <input id="emailInput" class="auth-input" type="email" inputmode="email" autocomplete="email" placeholder="you@gmail.com">
             <button id="magicLinkBtn" class="auth-btn" type="button">Send link</button>
+          </div>
+          <div style="margin-top:10px;text-align:center;color:var(--text-2);">or</div>
+          <div class="auth-controls" style="margin-top:8px;">
+            <input id="usernameInput" class="auth-input" type="text" autocomplete="username" placeholder="username">
+            <input id="passwordInput" class="auth-input" type="password" autocomplete="current-password" placeholder="password">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button id="loginBtn" class="auth-btn" type="button">Log in</button>
+            <button id="showRegisterBtn" class="auth-btn-secondary" type="button">Register</button>
+          </div>
+          <div id="registerPanel" style="display:none;margin-top:12px;border-top:1px dashed var(--border);padding-top:12px;">
+            <input id="regUsernameInput" class="auth-input" type="text" placeholder="choose a username">
+            <input id="regPasswordInput" class="auth-input" type="password" placeholder="choose a password">
+            <input id="regNameInput" class="auth-input" type="text" placeholder="display name (optional)">
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button id="registerBtn" class="auth-btn">Create account</button>
+              <button id="hideRegisterBtn" class="auth-btn-secondary">Cancel</button>
+            </div>
           </div>
         </div>
         <div id="authSignedIn" hidden>
@@ -674,6 +692,58 @@ document.getElementById("magicLinkBtn").addEventListener("click", async function
     input.value = "";
   } catch (e) {
     setAuthStatus(e.message || "Unable to send the link right now.", "error");
+  }
+});
+
+// Password login/register UI behavior
+document.getElementById("showRegisterBtn").addEventListener("click", function () {
+  document.getElementById("registerPanel").style.display = "block";
+});
+document.getElementById("hideRegisterBtn").addEventListener("click", function () {
+  document.getElementById("registerPanel").style.display = "none";
+});
+
+document.getElementById("loginBtn").addEventListener("click", async function () {
+  var username = (document.getElementById("usernameInput").value || "").trim();
+  var password = (document.getElementById("passwordInput").value || "");
+  if (!username || !password) { setAuthStatus("Enter username and password", "error"); return; }
+  setAuthStatus("Signing in…", "");
+  try {
+    var response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: username, password: password })
+    });
+    var data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Login failed");
+    await refreshAuthState();
+    setAuthStatus("Signed in", "success");
+    document.getElementById("usernameInput").value = "";
+    document.getElementById("passwordInput").value = "";
+  } catch (e) {
+    setAuthStatus(e.message || "Login failed", "error");
+  }
+});
+
+document.getElementById("registerBtn").addEventListener("click", async function () {
+  var username = (document.getElementById("regUsernameInput").value || "").trim();
+  var password = (document.getElementById("regPasswordInput").value || "");
+  var name = (document.getElementById("regNameInput").value || "").trim();
+  if (!username || !password) { setAuthStatus("Choose a username and password", "error"); return; }
+  setAuthStatus("Creating account…", "");
+  try {
+    var response = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: username, password: password, name: name })
+    });
+    var data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Registration failed");
+    await refreshAuthState();
+    setAuthStatus("Account created and signed in", "success");
+    document.getElementById("registerPanel").style.display = "none";
+  } catch (e) {
+    setAuthStatus(e.message || "Registration failed", "error");
   }
 });
 
@@ -1775,6 +1845,53 @@ export default {
       return json({ ok: true, message: "Sign-in email delivery is not configured yet. Set RESEND_API_KEY and RESEND_FROM_EMAIL to enable it." }, 500);
     }
 
+    // Username/password registration
+    if (url.pathname === "/api/auth/register" && request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+      const username = String(body.username || "").trim();
+      const password = String(body.password || "");
+      const name = String(body.name || "").trim();
+      if (!/^[a-zA-Z0-9_\-]{3,30}$/.test(username)) return json({ error: "Invalid username" }, 400);
+      if (password.length < 8) return json({ error: "Password must be at least 8 characters" }, 400);
+      const users = await getAuthUsers(env);
+      if (users.find((u) => u.username === username)) return json({ error: "Username taken" }, 400);
+      const salt = generateSaltBase64();
+      const hash = await derivePasswordHash(password, salt);
+      const user = { username, passwordHash: hash, salt, name, createdAt: Date.now() };
+      users.push(user);
+      await env.PLAYERS.put(AUTH_USERS_KEY, JSON.stringify(users));
+      const sessionToken = createSessionToken(username);
+      await env.PLAYERS.put(`${AUTH_SESSIONS_KEY}:${sessionToken}`, JSON.stringify({ email: username, expiresAt: Date.now() + SESSION_TTL_SECONDS }));
+      const cookie = serializeCookie(AUTH_COOKIE, sessionToken, { httpOnly: true, secure: true, sameSite: "Lax", path: "/", maxAge: SESSION_TTL_SECONDS });
+      return json({ ok: true }, 200, { "Set-Cookie": cookie });
+    }
+
+    // Username/password login
+    if (url.pathname === "/api/auth/login" && request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+      const username = String(body.username || "").trim();
+      const password = String(body.password || "");
+      const users = await getAuthUsers(env);
+      const user = users.find((u) => u.username === username);
+      if (!user || !user.salt || !user.passwordHash) return json({ error: "Invalid credentials" }, 401);
+      const hash = await derivePasswordHash(password, user.salt);
+      if (hash !== user.passwordHash) return json({ error: "Invalid credentials" }, 401);
+      const sessionToken = createSessionToken(username);
+      await env.PLAYERS.put(`${AUTH_SESSIONS_KEY}:${sessionToken}`, JSON.stringify({ email: username, expiresAt: Date.now() + SESSION_TTL_SECONDS }));
+      const cookie = serializeCookie(AUTH_COOKIE, sessionToken, { httpOnly: true, secure: true, sameSite: "Lax", path: "/", maxAge: SESSION_TTL_SECONDS });
+      return json({ ok: true }, 200, { "Set-Cookie": cookie });
+    }
+
     if (url.pathname === "/api/auth/me" && request.method === "GET") {
       const user = await getSessionUser(request, env);
       return user ? json({ user }) : json({ error: "Not signed in" }, 401);
@@ -1935,6 +2052,40 @@ async function getAuthUsers(env) {
   }
 }
 
+// Web Crypto helpers for password hashing
+function uint8ArrayToBase64(u8) {
+  let CHUNK_SIZE = 0x8000;
+  let index = 0;
+  let result = "";
+  while (index < u8.length) {
+    const sub = u8.subarray(index, Math.min(index + CHUNK_SIZE, u8.length));
+    result += String.fromCharCode.apply(null, sub);
+    index += CHUNK_SIZE;
+  }
+  return btoa(result);
+}
+
+function base64ToUint8Array(b64) {
+  const bin = atob(b64);
+  const len = bin.length;
+  const arr = new Uint8Array(len);
+  for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+function generateSaltBase64() {
+  const s = crypto.getRandomValues(new Uint8Array(16));
+  return uint8ArrayToBase64(s);
+}
+
+async function derivePasswordHash(password, saltBase64) {
+  const enc = new TextEncoder();
+  const salt = base64ToUint8Array(saltBase64);
+  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
+  return uint8ArrayToBase64(new Uint8Array(bits));
+}
+
 async function getSessionUser(request, env) {
   const cookieHeader = request.headers.get("Cookie") || "";
   const match = cookieHeader.match(new RegExp(`(?:^|; )${AUTH_COOKIE}=([^;]+)`));
@@ -1949,8 +2100,8 @@ async function getSessionUser(request, env) {
       return null;
     }
     const users = await getAuthUsers(env);
-    const user = users.find((entry) => entry.email === payload.email);
-    return user ? { email: user.email, name: user.name } : { email: payload.email, name: "" };
+    const user = users.find((entry) => entry.email === payload.email || entry.username === payload.email);
+    return user ? { email: user.email || user.username, name: user.name || "" } : { email: payload.email, name: "" };
   } catch {
     return null;
   }
