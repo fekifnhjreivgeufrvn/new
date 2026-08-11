@@ -1690,6 +1690,9 @@ function renderLeaderboard(data) {
   body.querySelectorAll(".lb-name-btn").forEach(function (button) {
     button.addEventListener("click", function () {
       window.location.href = "/player?name=" + encodeURIComponent(button.dataset.player);
+    });
+  });
+
   // If a pulse request was set by the roll page, animate the matching player's row briefly
   try {
     var pulseName = localStorage.getItem("sixroll_pulse");
