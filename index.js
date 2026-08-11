@@ -301,6 +301,11 @@ const HTML_PAGE = `<!DOCTYPE html>
   .lb-body-row:last-child { border-bottom: none; }
   .lb-body-row:hover { background: var(--surface-2); }
   .lb-body-row.me { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  /* pulse animation for when a roll navigates to the leaderboard */
+  .lb-row.pulse { animation: lb-pulse 2s ease-in-out 1; }
+  .lb-row.pulse .lb-name { animation: lb-name-pulse 800ms ease-in-out 0s 3; }
+  @keyframes lb-name-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  @keyframes lb-pulse { 0% { box-shadow: inset 0 0 0 0 rgba(0,0,0,0); } 50% { box-shadow: inset 0 0 0 12px rgba(125,90,255,0.08); } 100% { box-shadow: inset 0 0 0 0 rgba(0,0,0,0); } }
   .lb-rank { font-weight: 700; color: var(--text-3); }
   .lb-word { font-family: "Space Mono", monospace; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lb-word-btn { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 3px; }
@@ -1179,6 +1184,25 @@ async function renderResult(letters, res, leaderboard) {
       showToast("Clipboard not available");
     }
   };
+
+  // If this roll is in the top 20, expose a "Go to leaderboard" button under the badge list
+  try {
+    var prevBtn = document.getElementById("goLeaderboardBtn");
+    if (prevBtn) prevBtn.remove();
+    if (rank) {
+      var gbtn = document.createElement("button");
+      gbtn.id = "goLeaderboardBtn";
+      gbtn.type = "button";
+      gbtn.className = "share-btn";
+      gbtn.textContent = "Go to leaderboard";
+      gbtn.onclick = function () {
+        try { localStorage.setItem("sixroll_pulse", getName()); } catch (e) {}
+        window.location.href = "/leaderboard";
+      };
+      var supEl = document.getElementById("supporting");
+      if (supEl && supEl.parentNode) supEl.parentNode.insertBefore(gbtn, supEl);
+    }
+  } catch (e) {}
 }
 
 /* ================= leaderboard ================= */
@@ -1243,6 +1267,26 @@ function renderLeaderboard(data) {
       window.location.href = "/roll/" + encodeURIComponent(button.dataset.word) + "?name=" + encodeURIComponent(button.dataset.player) + "&ep=" + encodeURIComponent(button.dataset.ep);
     });
   });
+
+  // If a pulse request was set by the roll page, animate the matching player's row briefly
+  try {
+    var pulseName = localStorage.getItem("sixroll_pulse");
+    if (pulseName) {
+      localStorage.removeItem("sixroll_pulse");
+      (function (pulseLower) {
+        setTimeout(function () {
+          var rows = body.querySelectorAll(".lb-row");
+          rows.forEach(function (row) {
+            var nameEl = row.querySelector(".lb-name");
+            if (nameEl && nameEl.textContent.toLowerCase() === pulseLower) {
+              row.classList.add("pulse");
+              setTimeout(function () { row.classList.remove("pulse"); }, 2400);
+            }
+          });
+        }, 80);
+      })(pulseName.toLowerCase());
+    }
+  } catch (e) {}
 }
 
 async function loadLeaderboard() {
