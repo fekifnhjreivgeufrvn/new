@@ -1385,8 +1385,6 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
     } catch (e) {
       showToast("Couldn't save this leaderboard roll");
     }
-  } else {
-    showToast("Roll complete — not in the top 20");
   }
   syncCooldownUI();
   tickCooldownText();
