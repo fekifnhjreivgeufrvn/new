@@ -193,6 +193,29 @@ const HTML_PAGE = `<!DOCTYPE html>
   .auth-status.success { color: var(--tier-uncommon); }
   .auth-status.error { color: var(--tier-mythic); }
 
+  .profile-overview { display: grid; gap: 16px; margin-top: 18px; }
+  .profile-overview-head { display: flex; align-items: center; gap: 12px; }
+  .profile-overview-head .auth-avatar { width: 52px; height: 52px; font-size: 1.2rem; }
+  .profile-summary-title { margin: 0; font-size: 1.15rem; font-weight: 700; }
+  .profile-summary-note { margin: 4px 0 0; color: var(--text-2); font-size: .85rem; }
+  .profile-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .profile-field {
+    border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border);
+    padding: 12px;
+  }
+  .profile-field-label { display: block; color: var(--text-3); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+  .profile-field-value { display: block; font-size: 1rem; font-weight: 700; color: var(--text); }
+  .profile-description { margin: 0; color: var(--text-2); line-height: 1.5; }
+  .profile-section-title { margin: 0 0 10px; font-size: .92rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
+  .recent-rolls { display: grid; gap: 10px; }
+  .recent-roll { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+  .recent-roll-main { min-width: 0; }
+  .recent-roll-word { font-family: "Space Mono", monospace; font-weight: 700; letter-spacing: .08em; display: block; color: var(--text); }
+  .recent-roll-meta { display: flex; gap: 8px; flex-wrap: wrap; color: var(--text-3); font-size: .78rem; }
+  .recent-roll-ep { color: var(--accent); font-weight: 700; }
+  .lb-name-btn { all: unset; cursor: pointer; color: inherit; font: inherit; display: inline; }
+  .lb-name-btn:hover { text-decoration: underline; }
+
   /* ---------- tiles ---------- */
   .tiles { display: flex; gap: 2px; justify-content: center; perspective: 800px; margin: 0 0 20px; }
   .tile {
@@ -555,6 +578,41 @@ const HTML_PAGE = `<!DOCTYPE html>
             <button id="signOutBtn" class="auth-btn-secondary" type="button">Sign out</button>
           </div>
         </div>
+        <div class="profile-overview" id="accountOverview" hidden>
+          <div class="profile-overview-head">
+            <div class="auth-avatar" id="overviewAvatar" aria-hidden="true"></div>
+            <div>
+              <h2 class="profile-summary-title" id="overviewTitle">Player overview</h2>
+              <p class="profile-summary-note" id="overviewSubtitle">Account stats, best results, and recent activity.</p>
+            </div>
+          </div>
+          <div class="profile-field-grid">
+            <div class="profile-field">
+              <span class="profile-field-label">Username</span>
+              <span class="profile-field-value" id="overviewUsername">—</span>
+              <p class="profile-description">The unique identifier used to sign in.</p>
+            </div>
+            <div class="profile-field">
+              <span class="profile-field-label">Display name</span>
+              <span class="profile-field-value" id="overviewDisplayName">—</span>
+              <p class="profile-description">What other players see on the leaderboard.</p>
+            </div>
+            <div class="profile-field">
+              <span class="profile-field-label">Best roll</span>
+              <span class="profile-field-value" id="overviewBestRoll">—</span>
+              <p class="profile-description">Highest EP result submitted to the leaderboard.</p>
+            </div>
+            <div class="profile-field">
+              <span class="profile-field-label">Total rolls</span>
+              <span class="profile-field-value" id="overviewRollCount">—</span>
+              <p class="profile-description">Leaderboard rolls recorded for this player.</p>
+            </div>
+          </div>
+          <div class="recent-rolls" id="recentRollsSection">
+            <h3 class="profile-section-title">Recent leaderboard rolls</h3>
+            <div id="recentRolls"></div>
+          </div>
+        </div>
         <div id="authStatus" class="auth-status" aria-live="polite"></div>
       </section>
       <a href="/" class="account-back-link">← Back to the game</a>
@@ -775,6 +833,105 @@ async function refreshAuthState() {
     authState.user = null;
   }
   updateAuthUI();
+  if (window.location.pathname.startsWith("/account")) {
+    initializeAccountOverview(getAccountPathName()).catch(function () {});
+  }
+}
+
+function getAccountPathName() {
+  var path = window.location.pathname;
+  if (path.startsWith("/account/")) return decodeURIComponent(path.slice("/account/".length));
+  return null;
+}
+
+function formatTimestamp(ts) {
+  if (!ts) return "—";
+  var date = new Date(Number(ts));
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function renderPlayerOverview(summary, isCurrentUser) {
+  var overview = document.getElementById("accountOverview");
+  if (!overview) return;
+  var title = document.getElementById("overviewTitle");
+  var subtitle = document.getElementById("overviewSubtitle");
+  var avatar = document.getElementById("overviewAvatar");
+  var username = document.getElementById("overviewUsername");
+  var displayName = document.getElementById("overviewDisplayName");
+  var bestRoll = document.getElementById("overviewBestRoll");
+  var rollCount = document.getElementById("overviewRollCount");
+  var recentRolls = document.getElementById("recentRolls");
+  if (avatar) avatar.textContent = (summary.displayName || summary.username || "?").trim().charAt(0).toUpperCase() || "?";
+  if (title) title.textContent = isCurrentUser ? "Your account overview" : "Player overview";
+  if (subtitle) subtitle.textContent = isCurrentUser ? "Manage your display name, and review your leaderboard history." : "See leaderboard activity and top rolls for this player.";
+  if (username) username.textContent = summary.username || "—";
+  if (displayName) displayName.textContent = summary.displayName || "—";
+  if (bestRoll) bestRoll.textContent = summary.bestRoll ? summary.bestRoll.word + " (" + summary.bestRoll.ep + " EP)" : "No leaderboard rolls yet";
+  if (rollCount) rollCount.textContent = String(summary.rollCount || 0);
+  if (recentRolls) {
+    recentRolls.innerHTML = "";
+    if (!summary.recentRolls || !summary.recentRolls.length) {
+      recentRolls.innerHTML = "<div class='profile-description'>No recent leaderboard rolls.</div>";
+    } else {
+      summary.recentRolls.forEach(function (roll) {
+        var item = document.createElement("div");
+        item.className = "recent-roll";
+        var main = document.createElement("div");
+        main.className = "recent-roll-main";
+        main.innerHTML = "<span class='recent-roll-word'>" + escapeHtml(roll.word) + "</span>" +
+          "<span class='recent-roll-meta'><span class='recent-roll-ep'>" + roll.ep + " EP</span><span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
+        item.appendChild(main);
+        recentRolls.appendChild(item);
+      });
+    }
+  }
+  overview.hidden = false;
+}
+
+async function initializeAccountOverview(explicitName) {
+  var pathName = explicitName || getAccountPathName();
+  var isSelf = !pathName;
+  var playerName = pathName || (authState.user ? authState.user.email || authState.user.name || "" : "");
+  var signedIn = !!authState.user;
+  var signedOutEl = document.getElementById("authSignedOut");
+  var signedInEl = document.getElementById("authSignedIn");
+  var pageTitle = document.getElementById("accountPageTitle");
+  var pageSubtitle = document.getElementById("accountPageSubtitle");
+  if (pathName) {
+    if (signedOutEl) signedOutEl.hidden = true;
+    if (signedInEl) signedInEl.hidden = true;
+    if (pageTitle) pageTitle.textContent = "Player overview";
+    if (pageSubtitle) pageSubtitle.textContent = "View leaderboard stats for " + escapeHtml(playerName) + ".";
+  } else if (signedIn) {
+    if (signedOutEl) signedOutEl.hidden = true;
+    if (signedInEl) signedInEl.hidden = false;
+    if (pageTitle) pageTitle.textContent = "Your account";
+    if (pageSubtitle) pageSubtitle.textContent = "Manage your display name, or sign out below.";
+  } else {
+    if (signedOutEl) signedOutEl.hidden = false;
+    if (signedInEl) signedInEl.hidden = true;
+    if (pageTitle) pageTitle.textContent = "Sign in";
+    if (pageSubtitle) pageSubtitle.textContent = "Save your rolls and claim your spot on the leaderboard.";
+  }
+  var overviewEl = document.getElementById("accountOverview");
+  if (overviewEl) {
+    overviewEl.hidden = true;
+  }
+  if (!playerName) {
+    if (overviewEl) overviewEl.hidden = true;
+    return;
+  }
+  try {
+    var response = await fetch("/api/player/" + encodeURIComponent(playerName));
+    if (!response.ok) throw new Error("Player not found");
+    var summary = await response.json();
+    renderPlayerOverview(summary, isSelf && signedIn);
+  } catch (e) {
+    var overview = document.getElementById("accountOverview");
+    if (overview) overview.hidden = true;
+    setAuthStatus("Unable to load player overview.", "error");
+  }
 }
 
 // Password login/register UI behavior
@@ -856,6 +1013,9 @@ document.getElementById("signOutBtn").addEventListener("click", async function (
   } catch (e) {}
   authState.user = null;
   updateAuthUI();
+  if (window.location.pathname.startsWith("/account")) {
+    initializeAccountOverview().catch(function () {});
+  }
   setAuthStatus("Signed out.", "");
   showToast("Signed out");
 });
@@ -1558,13 +1718,18 @@ function renderLeaderboard(data) {
     return "<div class='lb-row lb-body-row" + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms'>" +
       "<span class='lb-rank'>" + rankDisplay + "</span>" +
       "<span class='lb-word' style='color:" + wordColor + "'><button class='lb-word-btn' type='button' data-word='" + escapeHtml(p.word) + "' data-player='" + escapeHtml(p.name) + "' data-ep='" + p.ep + "' style='color:" + wordColor + "'>" + escapeHtml(p.word) + "</button></span>" +
-      "<span class='lb-name'>" + escapeHtml(p.name) + "</span>" +
+      "<span class='lb-name'><button class='lb-name-btn' type='button' data-player='" + escapeHtml(p.name) + "'>" + escapeHtml(p.name) + "</button></span>" +
       "<span class='lb-ep' style='color:" + wordColor + "' title='" + rowTier + "'><span class='tier-dot-mini rarity-" + rowTier.toLowerCase() + "'></span>" + p.ep + "</span>" +
       "</div>";
   }).join("");
   body.querySelectorAll(".lb-word-btn").forEach(function (button) {
     button.addEventListener("click", function () {
       window.location.href = "/roll/" + encodeURIComponent(button.dataset.word) + "?name=" + encodeURIComponent(button.dataset.player) + "&ep=" + encodeURIComponent(button.dataset.ep);
+    });
+  });
+  body.querySelectorAll(".lb-name-btn").forEach(function (button) {
+    button.addEventListener("click", function () {
+      window.location.href = "/account/" + encodeURIComponent(button.dataset.player);
     });
   });
 
@@ -1659,9 +1824,9 @@ async function initializeDetailPage() {
     document.title = "Global Leaderboard — SixRoll";
     return false;
   }
-  if (path === "/account") {
+  if (path === "/account" || path.startsWith("/account/")) {
     document.documentElement.classList.add("account-page");
-    document.title = "Your Account — SixRoll";
+    document.title = path === "/account" ? "Your Account — SixRoll" : "Player overview — SixRoll";
     return true;
   }
   var prefix = "/roll/";
@@ -1896,7 +2061,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if ((url.pathname === "/" || url.pathname === "/leaderboard" || url.pathname === "/account" || /^\/roll\/[A-Za-z]{6}$/.test(url.pathname)) && request.method === "GET") {
+    if ((url.pathname === "/" || url.pathname === "/leaderboard" || url.pathname === "/account" || /^\/account\/[^/]+$/.test(url.pathname) || /^\/roll\/[A-Za-z]{6}$/.test(url.pathname)) && request.method === "GET") {
       return new Response(HTML_PAGE, { headers: { "content-type": "text/html;charset=UTF-8" } });
     }
 
@@ -1980,6 +2145,26 @@ export default {
       const rolls = await getRolls(env);
       const top = rolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0)).slice(0, 20);
       return json(top);
+    }
+
+    if (url.pathname.startsWith("/api/player/") && request.method === "GET") {
+      const playerName = decodeURIComponent(url.pathname.slice("/api/player/".length)).trim();
+      if (!playerName) return json({ error: "Player name required" }, 404);
+      const rolls = await getRolls(env);
+      const normalized = playerName.toLowerCase();
+      const playerRolls = rolls.filter((roll) => String(roll.name || "").toLowerCase() === normalized);
+      const rollCount = playerRolls.length;
+      const bestRoll = playerRolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0))[0] || null;
+      const recentRolls = playerRolls.slice().sort((a, b) => (Number(b.ts) || 0) - (Number(a.ts) || 0)).slice(0, 5);
+      const users = await getAuthUsers(env);
+      const stored = users.find((entry) => String(entry.email || entry.username || "").toLowerCase() === normalized);
+      return json({
+        username: playerName,
+        displayName: stored ? stored.name || "" : "",
+        rollCount,
+        bestRoll: bestRoll ? { word: bestRoll.word, ep: bestRoll.ep, ts: bestRoll.ts } : null,
+        recentRolls: recentRolls.map((r) => ({ word: r.word, ep: r.ep, ts: r.ts }))
+      });
     }
 
     if (url.pathname.startsWith("/api/roll/") && request.method === "GET") {
