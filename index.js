@@ -2261,9 +2261,34 @@ async function renderResult(letters, res, leaderboard) {
 /* ================= leaderboard ================= */
 var LB = {
   load: async function () {
-    var res = await fetch("/api/leaderboard");
+    var cacheKey = "sixroll_leaderboard_cache";
+    var now = Date.now();
+    try {
+      var cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
+      if (cached && Array.isArray(cached.data) && now - Number(cached.ts || 0) < 5000) {
+        // Refresh in the background so the UI stays instant without making
+        // the board meaningfully stale.
+        fetch("/api/leaderboard", { cache: "no-store" }).then(function (fresh) {
+          if (!fresh.ok) return null;
+          return fresh.json();
+        }).then(function (data) {
+          if (Array.isArray(data)) {
+            localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: data }));
+            leaderboardCache = data;
+            renderLeaderboard(leaderboardCache);
+          }
+        }).catch(function () {});
+        return cached.data;
+      }
+    } catch (e) {}
+
+    var res = await fetch("/api/leaderboard", { cache: "no-store" });
     if (!res.ok) throw new Error("Failed to load leaderboard");
-    return await res.json();
+    var data = await res.json();
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: data }));
+    } catch (e) {}
+    return data;
   },
   submit: async function (name, word, ep, email) {
     var response = await fetch("/api/roll", {
@@ -2662,7 +2687,9 @@ refreshAuthState().then(function () {
 `;
 
 const KV_KEY = "rolls";
+const ROLL_INDEX_KEY = "roll_index";
 const MAX_ROLLS = 500;
+const MAX_LEADERBOARD = 20;
 const AUTH_COOKIE = "sixroll_auth";
 const AUTH_USERS_KEY = "auth_users";
 const AUTH_SESSIONS_KEY = "auth_sessions";
@@ -2753,9 +2780,8 @@ export default {
     }
 
     if (url.pathname === "/api/leaderboard" && request.method === "GET") {
-      const rolls = await getRolls(env);
-      const top = rolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0)).slice(0, 20);
-      return json(top);
+      const index = await getRollIndex(env);
+      return json(index.leaderboard || []);
     }
 
     if (url.pathname.startsWith("/api/player/") && request.method === "GET") {
@@ -2816,16 +2842,43 @@ export default {
         return json({ ok: false, skipped: true });
       }
 
+      const index = await getRollIndex(env);
+      const cutoff = Number(index.cutoffEp);
+      const qualifiesForRollHistory = !Number.isFinite(cutoff) || index.count < MAX_ROLLS || ep >= cutoff;
+
+      // Most rolls never make the stored top-500 history. Do not rewrite the
+      // entire KV blob for those rolls.
+      if (!qualifiesForRollHistory) {
+        return json({ ok: true, saved: false, leaderboard: false });
+      }
+
       const rolls = await getRolls(env);
       rolls.push({ word, name, ep, ts: Date.now(), email: signedInUser ? signedInUser.email : null });
       rolls.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
-      await env.PLAYERS.put(KV_KEY, JSON.stringify(rolls.slice(0, MAX_ROLLS)));
+      const trimmed = rolls.slice(0, MAX_ROLLS);
+      const leaderboard = trimmed.slice(0, MAX_LEADERBOARD);
+      const nextIndex = {
+        count: trimmed.length,
+        cutoffEp: trimmed.length ? Number(trimmed[trimmed.length - 1].ep) || 0 : null,
+        leaderboard
+      };
 
-      return json({ ok: true });
+      // Keep the existing rolls key for profile/admin compatibility, while
+      // giving leaderboard reads their own tiny, directly-addressable index.
+      await env.PLAYERS.put(KV_KEY, JSON.stringify(trimmed));
+      await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify(nextIndex));
+
+      return json({
+        ok: true,
+        saved: true,
+        leaderboard: leaderboard.some((roll) => roll === trimmed[0]) ||
+          leaderboard.some((roll) => roll.word === word && roll.name === name && Number(roll.ep) === ep)
+      });
     }
 
     if (url.pathname === "/api/reset" && request.method === "POST") {
       await env.PLAYERS.put(KV_KEY, JSON.stringify([]));
+      await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({ count: 0, cutoffEp: null, leaderboard: [] }));
       return json({ ok: true });
     }
 
@@ -2858,7 +2911,13 @@ export default {
         cleaned.push({ word, name, ep, ts });
       }
       cleaned.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
-      await env.PLAYERS.put(KV_KEY, JSON.stringify(cleaned.slice(0, MAX_ROLLS)));
+      const trimmed = cleaned.slice(0, MAX_ROLLS);
+      await env.PLAYERS.put(KV_KEY, JSON.stringify(trimmed));
+      await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({
+        count: trimmed.length,
+        cutoffEp: trimmed.length ? Number(trimmed[trimmed.length - 1].ep) || 0 : null,
+        leaderboard: trimmed.slice(0, MAX_LEADERBOARD)
+      }));
       return json({ ok: true, count: cleaned.length });
     }
 
@@ -2875,6 +2934,35 @@ async function getRolls(env) {
   } catch {
     return [];
   }
+}
+
+async function getRollIndex(env) {
+  const raw = await env.PLAYERS.get(ROLL_INDEX_KEY);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.leaderboard)) {
+        return {
+          count: Number(parsed.count) || parsed.leaderboard.length,
+          cutoffEp: Number.isFinite(Number(parsed.cutoffEp)) ? Number(parsed.cutoffEp) : null,
+          leaderboard: parsed.leaderboard
+        };
+      }
+    } catch {}
+  }
+
+  // One-time migration/fallback for existing deployments that only have the
+  // original "rolls" key.
+  const rolls = await getRolls(env);
+  const sorted = rolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
+  const trimmed = sorted.slice(0, MAX_ROLLS);
+  const index = {
+    count: trimmed.length,
+    cutoffEp: trimmed.length ? Number(trimmed[trimmed.length - 1].ep) || 0 : null,
+    leaderboard: trimmed.slice(0, MAX_LEADERBOARD)
+  };
+  await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify(index));
+  return index;
 }
 
 async function getAuthUsers(env) {
