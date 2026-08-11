@@ -465,33 +465,6 @@ const HTML_PAGE = `<!DOCTYPE html>
   html.account-page .container { max-width: 980px; padding-top: 72px; }
   html:not(.account-page) .account-page-wrap { display: none; }
 
-
-
-  const ACCOUNT_SESSION_KEY = "roll-account-session";
-
-  function saveAccountSession(account) {
-    try {
-      localStorage.setItem(ACCOUNT_SESSION_KEY, JSON.stringify(account));
-    } catch (e) {}
-  }
-
-  function loadAccountSession() {
-    try {
-      const raw = localStorage.getItem(ACCOUNT_SESSION_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function clearAccountSession() {
-    try { localStorage.removeItem(ACCOUNT_SESSION_KEY); } catch (e) {}
-  }
-
-  function setAccountProfileMode(enabled) {
-    document.documentElement.classList.toggle("profile-mode", !!enabled);
-  }
-
   /* ---------- account page ---------- */
   .account-page-head { text-align: center; margin: 0 0 22px; }
   .account-page-emoji { display: inline-block; font-size: 1.9rem; margin-bottom: 8px; animation: diceFloat 4s ease-in-out infinite; }
@@ -846,7 +819,21 @@ const HTML_PAGE = `<!DOCTYPE html>
   @media(max-width:430px){.profile-display-name{font-size:1.35rem}.profile-identity .profile-subtitle{display:none}}
 
   @media (max-width: 760px) {
-    .account-page-wrap.profile-active {
+    html.account-page .account-page-wrap.profile-active { width:min(100%,680px); max-width:680px; margin-inline:auto; }
+  html.account-page .account-page-wrap.profile-active .account-card { display:none !important; }
+  html.account-page .account-page-wrap.profile-active .account-page-head { display:none !important; }
+  html.account-page .account-page-wrap.profile-active + .result-card { display:none; }
+  html.account-page .container { box-sizing:border-box; }
+  .profile-roll-word { font-family:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:700; letter-spacing:.035em; }
+  .profile-roll-ep { font-family:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.68rem; font-weight:700; color:var(--text-3); opacity:.8; }
+  .profile-roll-rarity { font-size:.62rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--badge-color); }
+  .profile-best-stat.rarity-rare,.profile-best-stat.rarity-epic { box-shadow:0 0 20px -9px var(--badge-color); }
+  .profile-best-stat.rarity-legendary,.profile-best-stat.rarity-mythic,.profile-best-stat.rarity-divine,.profile-best-stat.rarity-cosmic { background:linear-gradient(110deg,color-mix(in srgb,var(--badge-color) 20%,var(--surface)),color-mix(in srgb,var(--badge-color) 5%,var(--surface)),color-mix(in srgb,var(--badge-color) 18%,var(--surface))); background-size:180% 100%; animation:badgeGradient 2.4s ease-in-out infinite; box-shadow:0 0 22px -7px var(--badge-color),inset 0 0 20px -14px var(--badge-color); }
+  .recent-roll.rarity-rare,.recent-roll.rarity-epic { box-shadow:0 0 18px -9px var(--badge-color); }
+  .recent-roll.rarity-legendary,.recent-roll.rarity-mythic,.recent-roll.rarity-divine,.recent-roll.rarity-cosmic { animation:badgeGradient 2.4s ease-in-out infinite; box-shadow:0 0 22px -7px var(--badge-color),inset 0 0 18px -14px var(--badge-color); }
+  .profile-signout-btn { appearance:none; border:1px solid var(--border); background:transparent; color:var(--text-3); border-radius:7px; padding:6px 10px; cursor:pointer; font:700 .68rem inherit; transition:.18s ease; }
+  .profile-signout-btn:hover { color:var(--accent); border-color:var(--border-strong); background:color-mix(in srgb,var(--accent) 6%,transparent); }
+  .account-page-wrap.profile-active {
       width: min(100%, 680px);
       padding-inline: 14px;
     }
@@ -903,7 +890,7 @@ const HTML_PAGE = `<!DOCTYPE html>
         <p class="account-page-subtitle" id="accountPageSubtitle">Save your rolls and claim your spot on the leaderboard.</p>
       </div>
       <div class="account-grid">
-        <section class="account-card auth-panel" aria-label="Account">
+        <section class="account-card" aria-label="Account">
           <div id="authSignedOut">
             <div class="auth-form">
               <input id="usernameInput" class="auth-input" type="text" autocomplete="username" placeholder="Username">
@@ -1147,6 +1134,11 @@ function updateUnlimitedUI() {
 
 /* ================= auth ================= */
 var authState = { user: null };
+var AUTH_LOCAL_KEY = "sixroll_auth_user";
+function saveAuthLocal(user) { try { if (user) localStorage.setItem(AUTH_LOCAL_KEY, JSON.stringify({ username:user.username || user.name || "", name:user.name || "", email:user.email || "" })); } catch(e){} }
+function clearAuthLocal() { try { localStorage.removeItem(AUTH_LOCAL_KEY); } catch(e){} }
+function getAuthLocal() { try { var raw=localStorage.getItem(AUTH_LOCAL_KEY); return raw ? JSON.parse(raw) : null; } catch(e){ return null; } }
+
 
 function getName() {
   if (authState.user && authState.user.name) return authState.user.name;
@@ -1220,6 +1212,7 @@ async function refreshAuthState() {
     if (!response.ok) throw new Error("Not signed in");
     var data = await response.json();
     authState.user = data.user || null;
+    if (authState.user) saveAuthLocal(authState.user);
   } catch (e) {
     authState.user = null;
   }
@@ -1266,7 +1259,11 @@ function renderPlayerOverview(summary, isCurrentUser) {
   if (subtitle) subtitle.textContent = isCurrentUser ? "Your rolls, stats, and leaderboard history." : "Leaderboard activity and top rolls for this player.";
   if (username) username.textContent = summary.username ? "#" + summary.username : "#—";
   if (displayName) displayName.textContent = summary.displayName || "—";
-  if (bestRoll) bestRoll.textContent = summary.bestRoll ? summary.bestRoll.word + " (" + summary.bestRoll.ep + " EP)" : "No leaderboard rolls yet";
+  if (bestRoll) {
+    if (summary.bestRoll) {
+      bestRoll.innerHTML = "<span class=\"profile-best-word\">" + escapeHtml(summary.bestRoll.word) + "</span> <span class=\"profile-best-ep\">" + Number(summary.bestRoll.ep || 0).toLocaleString() + " EP</span>";
+    } else bestRoll.textContent = "No leaderboard rolls yet";
+  }
   if (rollCount) rollCount.textContent = String(summary.rollCount || 0);
   var totalEP = Number(summary.totalEP != null ? summary.totalEP : (summary.totalEp != null ? summary.totalEp : 0)) || 0;
   var totalEPEl = document.getElementById("overviewTotalEP");
@@ -1278,7 +1275,7 @@ function renderPlayerOverview(summary, isCurrentUser) {
     bestRollStat.className = "profile-feature-stat profile-best-stat rarity-" + bestTier.toLowerCase();
     bestRollStat.style.setProperty("--badge-color", bestColor);
     var bestMeta = bestRollStat.querySelector(".profile-stat-meta");
-    if (bestMeta) bestMeta.textContent = bestTier + " · Leaderboard";
+    if (bestMeta) bestMeta.textContent = bestTier + (summary.bestRoll.rank != null ? " · Rank #" + summary.bestRoll.rank : "");
   }
   if (recentRolls) {
     recentRolls.innerHTML = "";
@@ -1294,8 +1291,8 @@ function renderPlayerOverview(summary, isCurrentUser) {
         var main = document.createElement("div");
         main.className = "recent-roll-main";
         var recentTierLabel = tierForEP(roll.ep);
-        main.innerHTML = "<span class='recent-roll-word'>" + escapeHtml(roll.word) + "</span>" +
-          "<span class='recent-roll-meta'><span class='recent-roll-rarity'>" + recentTierLabel + "</span><span class='recent-roll-ep'>" + roll.ep + " EP</span><span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
+        main.innerHTML = "<span class=\"recent-roll-word profile-roll-word\" style=\"color:" + colorForEP(roll.ep) + "\">" + escapeHtml(roll.word) + "</span>" +
+          "<span class=\"recent-roll-meta\"><span class=\"recent-roll-rarity profile-roll-rarity\" style=\"--badge-color:" + colorForEP(roll.ep) + "\">" + recentTierLabel + "</span><span class=\"recent-roll-ep profile-roll-ep\">" + Number(roll.ep || 0).toLocaleString() + " EP</span><span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
         item.appendChild(main);
         recentRolls.appendChild(item);
       });
@@ -2551,6 +2548,23 @@ refreshAuthState().then(function () {
     if (!isDetailPage) loadLeaderboard();
   });
 });
+
+
+document.addEventListener("click", function(event){
+  var back=event.target && event.target.closest("#accountBackLink");
+  if(!back) return;
+  event.preventDefault();
+  if(window.history.length>1) window.history.back(); else window.location.assign("/");
+});
+
+// Keep a local identity hint, but never trust it as authentication. The server session remains authoritative.
+(function restoreLocalAuthHint(){
+  var saved=getAuthLocal();
+  if(saved && !authState.user){
+    var usernameInput=document.getElementById("usernameInput");
+    if(usernameInput && saved.username) usernameInput.value=saved.username;
+  }
+})();
 </script>
 </body>
 </html>
@@ -2850,27 +2864,3 @@ function json(data, status = 200, extraHeaders = {}) {
     headers: Object.assign({ "content-type": "application/json" }, extraHeaders)
   });
 }
-
-  
-  document.addEventListener("click", function (event) {
-    const back = event.target && event.target.closest("#accountBackLink");
-    if (!back) return;
-    event.preventDefault();
-    if (window.history.length > 1) window.history.back();
-    else window.location.assign("/");
-  });
-
-window.addEventListener("DOMContentLoaded", function () {
-    const saved = loadAccountSession();
-    if (!saved) return;
-    try {
-      if (typeof currentUser !== "undefined") currentUser = saved;
-      const signedIn = document.getElementById("authSignedIn");
-      const signedOut = document.getElementById("authSignedOut");
-      if (signedIn) signedIn.hidden = false;
-      if (signedOut) signedOut.hidden = true;
-      setAccountProfileMode(true);
-      if (typeof renderAccountProfile === "function") renderAccountProfile(saved);
-    } catch (e) {}
-  });
-
