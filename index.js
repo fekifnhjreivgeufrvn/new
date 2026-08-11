@@ -2649,7 +2649,9 @@ document.addEventListener("click", function (event) {
   } else {
     window.location.assign("/");
   }
-});\n\nrefreshAuthState().then(function () {
+});
+
+refreshAuthState().then(function () {
   initializeDetailPage().then(function (isDetailPage) {
     if (!isDetailPage) loadLeaderboard();
   });
