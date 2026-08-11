@@ -781,6 +781,43 @@ const HTML_PAGE = `<!DOCTYPE html>
     animation-duration: 2.2s;
   }
 
+  /* ---------- profile showcase ---------- */
+  .account-page-wrap.public-profile{width:min(100%,720px);margin-inline:auto}
+  .account-page-wrap.public-profile .account-grid{display:block;width:100%}
+  .account-page-wrap.public-profile .account-card{display:none}
+  .profile-overview{width:100%;padding:0 0 20px;margin:0;background:transparent;border:0;box-shadow:none}
+  .profile-identity{display:flex;align-items:center;gap:18px;padding:4px 4px 28px;text-align:left}
+  .profile-identity .auth-avatar{width:68px;height:68px;border-radius:18px;font-size:1.35rem;box-shadow:0 0 0 1px var(--border),0 12px 28px -18px rgba(0,0,0,.35)}
+  .profile-identity-copy{min-width:0;display:grid;gap:3px}
+  .profile-display-name{margin:0;font-size:clamp(1.45rem,3vw,2rem);line-height:1.05;font-weight:850;letter-spacing:-.025em}
+  .profile-username{margin:0;color:var(--text-3);font-size:.82rem;font-weight:650;letter-spacing:.04em}
+  .profile-identity .profile-subtitle{margin:3px 0 0;color:var(--text-2);font-size:.76rem;line-height:1.4}
+  .profile-section{margin-top:12px;text-align:left}
+  .profile-section-heading{display:flex;align-items:baseline;gap:9px;margin:0 0 12px;padding:0 4px}
+  .profile-section-heading h3{margin:0;font-size:.92rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  .profile-section-kicker{color:var(--accent);font:700 .62rem/1 inherit;letter-spacing:.08em}
+  .profile-feature-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .profile-feature-stat{position:relative;overflow:hidden;min-height:112px;padding:17px 18px;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;background:var(--surface);box-shadow:none}
+  .profile-feature-stat::after{content:"";position:absolute;width:110px;height:110px;right:-48px;bottom:-60px;border-radius:50%;background:color-mix(in srgb,var(--accent) 10%,transparent);pointer-events:none}
+  .profile-stat-label,.profile-stat-meta{display:block;color:var(--text-3)}
+  .profile-stat-label{font-size:.63rem;font-weight:750;letter-spacing:.1em;text-transform:uppercase}
+  .profile-stat-value{display:block;margin-top:7px;font-size:clamp(1.35rem,4vw,1.85rem);line-height:1;font-weight:850;letter-spacing:-.025em}
+  .profile-stat-meta{margin-top:9px;font-size:.67rem}
+  .profile-best-stat{border-left-color:var(--badge-color,var(--accent));background:linear-gradient(110deg,color-mix(in srgb,var(--badge-color,var(--accent)) 9%,var(--surface)),var(--surface))}
+  .profile-best-stat .profile-stat-value{color:var(--badge-color,var(--text))}
+  .profile-secondary-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+  .profile-secondary-stat{position:relative;min-width:0;padding:10px 12px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--surface-2) 72%,transparent)}
+  .profile-secondary-stat>span{display:block;color:var(--text-3);font-size:.58rem;font-weight:750;letter-spacing:.08em;text-transform:uppercase}
+  .profile-secondary-stat>strong{display:block;overflow:hidden;margin-top:4px;color:var(--text);font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}
+  .profile-editable-stat{padding-right:38px}
+  .profile-edit-btn{position:absolute;right:8px;bottom:8px;width:24px;height:24px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text-3);cursor:pointer;font:inherit;opacity:.65;transition:color .18s ease,background .18s ease,border-color .18s ease,opacity .18s ease}
+  .profile-edit-btn:hover,.profile-edit-btn:focus-visible{opacity:1;color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface));border-color:var(--border);outline:none}
+  .profile-roll-history{margin-top:30px}
+  .profile-roll-history #recentRolls{display:grid;gap:8px}
+  .profile-roll-history .recent-roll{text-align:left}
+  @media(max-width:700px){html.account-page .container{padding-top:44px}.account-page-wrap.public-profile{width:min(100%,640px)}.profile-identity{gap:13px;padding-bottom:22px}.profile-identity .auth-avatar{width:56px;height:56px;border-radius:14px;font-size:1.05rem}.profile-feature-stats{grid-template-columns:1fr}.profile-feature-stat{min-height:96px}.profile-secondary-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-secondary-stat:last-child{grid-column:1/-1}}
+  @media(max-width:430px){.profile-display-name{font-size:1.35rem}.profile-identity .profile-subtitle{display:none}}
+
   /* ---------- responsive ---------- */
   @media (max-width: 680px) {
     .account-grid { grid-template-columns: 1fr; }
@@ -871,35 +908,30 @@ const HTML_PAGE = `<!DOCTYPE html>
           <div id="authStatus" class="auth-status" aria-live="polite"></div>
         </section>
         <section class="profile-overview profile-panel" id="accountOverview" hidden>
-          <div class="profile-header">
-            <div class="auth-avatar" id="overviewAvatar" aria-hidden="true"></div>
-            <div class="profile-title-block">
-              <h2 class="profile-title" id="overviewTitle">Player overview</h2>
-              <p class="profile-subtitle" id="overviewSubtitle">Account stats, best results, and recent leaderboard activity.</p>
+          <header class="profile-identity">
+            <div class="profile-identity-avatar"><div class="auth-avatar" id="overviewAvatar" aria-hidden="true"></div></div>
+            <div class="profile-identity-copy">
+              <h2 class="profile-display-name" id="overviewTitle">Player</h2>
+              <p class="profile-username" id="overviewUsername">#username</p>
+              <p class="profile-subtitle" id="overviewSubtitle">Your rolls, stats, and leaderboard history.</p>
             </div>
-          </div>
-          <div class="profile-stats-grid">
-            <div class="profile-field">
-              <span class="profile-field-label">Account</span>
-              <span class="profile-field-value" id="overviewUsername">—</span>
+          </header>
+          <section class="profile-section" aria-labelledby="profileStatisticsTitle">
+            <div class="profile-section-heading"><span class="profile-section-kicker">01</span><h3 id="profileStatisticsTitle">Statistics</h3></div>
+            <div class="profile-feature-stats">
+              <div class="profile-feature-stat profile-best-stat" id="bestRollStat"><span class="profile-stat-label">Best roll</span><strong class="profile-stat-value" id="overviewBestRoll">—</strong><span class="profile-stat-meta">Leaderboard</span></div>
+              <div class="profile-feature-stat"><span class="profile-stat-label">Total EP</span><strong class="profile-stat-value" id="overviewTotalEP">—</strong><span class="profile-stat-meta">Earned from leaderboard rolls</span></div>
             </div>
-            <div class="profile-field">
-              <span class="profile-field-label">Display name</span>
-              <span class="profile-field-value" id="overviewDisplayName">—</span>
+            <div class="profile-secondary-stats">
+              <div class="profile-secondary-stat"><span>Rolls</span><strong id="overviewRollCount">—</strong></div>
+              <div class="profile-secondary-stat"><span>Account</span><strong id="overviewUsernameSecondary">—</strong></div>
+              <div class="profile-secondary-stat profile-editable-stat"><span>Display name</span><strong id="overviewDisplayName">—</strong><button type="button" class="profile-edit-btn" id="editDisplayNameBtn" aria-label="Edit display name" title="Edit display name">✎</button></div>
             </div>
-            <div class="profile-field">
-              <span class="profile-field-label">Best leaderboard roll</span>
-              <span class="profile-field-value" id="overviewBestRoll">—</span>
-            </div>
-            <div class="profile-field">
-              <span class="profile-field-label">Leaderboard rolls</span>
-              <span class="profile-field-value" id="overviewRollCount">—</span>
-            </div>
-          </div>
-          <div class="recent-rolls" id="recentRollsSection">
-            <h3 class="profile-section-title">Latest leaderboard rolls</h3>
+          </section>
+          <section class="profile-section profile-roll-history" id="recentRollsSection" aria-labelledby="rollHistoryTitle">
+            <div class="profile-section-heading"><span class="profile-section-kicker">02</span><h3 id="rollHistoryTitle">Roll history</h3></div>
             <div id="recentRolls"></div>
-          </div>
+          </section>
         </section>
       </div>
       <a href="/" class="account-back-link">← Back to the game</a>
