@@ -215,7 +215,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   .result-glow {
     position: absolute; inset: -40% -10% auto -10%; height: 220px;
     background: radial-gradient(circle, var(--tier-color, var(--accent)) 0%, transparent 70%);
-    opacity: .28; filter: blur(14px); pointer-events: none;
+    opacity: .28; filter: blur(14px); pointer-events: none; transition: background .3s ease;
   }
   .result-header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px 12px; margin-bottom: 18px; position: relative; z-index: 1; }
   .result-total { display: flex; align-items: baseline; gap: 6px; }
@@ -274,7 +274,7 @@ const HTML_PAGE = `<!DOCTYPE html>
     position: relative; z-index: 1; padding-top: 14px; border-top: 1px dashed var(--border);
   }
   .total-ep-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); }
-  .total-ep-value { font-family: "Space Mono", monospace; font-weight: 700; font-size: 1.6rem; color: var(--tier-color); }
+  .total-ep-value { font-family: "Space Mono", monospace; font-weight: 700; font-size: 1.6rem; color: var(--tier-color); transition: color .3s ease; }
   .total-ep-unit { font-size: .78rem; color: var(--text-3); }
   .share-btn {
     border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
@@ -598,6 +598,13 @@ function findAnagramMatches(letters) {
   return matches;
 }
 
+function findAdjacentRepeat(letters) {
+  for (var i = 0; i < letters.length - 1; i++) {
+    if (letters[i] === letters[i + 1]) return [i, i + 1];
+  }
+  return null;
+}
+
 function isStrictlyAscending(letters) {
   for (var i = 1; i < letters.length; i++) if (letters[i - 1] >= letters[i]) return false;
   return true;
@@ -709,7 +716,12 @@ function badgeProbability(badge) {
   if (name === "Symmetrical Shapes") return Math.pow(9 / 26, 6);
   if (name === "Full Spectrum") return rangeProbability(20, 25);
   if (name === "Tight Cluster") return rangeProbability(0, 5);
-  if (name === "Pair") return exactRepeatProbability(2);
+  // "Pair" now requires the repeated letter to sit adjacently (a real double-letter, like the
+  // OO in "SPOOKY"), not just to appear twice anywhere in the roll. Exact probability from the
+  // same combinatorial enumeration: P(no letter appears 3+ times AND at least one letter repeats
+  // in two adjacent slots). Any-position repeats alone are ~43.6% (birthday-paradox math on 6
+  // draws from 26 letters) -- too common to feel special -- adjacency brings it down to ~15.6%.
+  if (name === "Pair") return 0.15614353085029883;
   if (name === "Triple") return exactRepeatProbability(3);
   if (name === "Quadruple") return exactRepeatProbability(4);
   if (name === "Quintuple") return exactRepeatProbability(5);
@@ -718,7 +730,14 @@ function badgeProbability(badge) {
   if (name === "Mirror Bookends") return 1 / 26;
   if (name === "Twin Core") return 1 / 26;
   if (name === "Double Word Score") return 1 / 1000;
-  if (name === "Scrambled Word" || name === "Scrambled Long Word") return 1 / (name === "Scrambled Long Word" ? 5000 : 500);
+  // Exact probabilities from full combinatorial enumeration over all 736,281 distinct
+  // 6-letter multisets (weighted by permutation count), checking whether the roll contains
+  // a rearrangeable subset of letters matching a dictionary word. This replaces old guessed
+  // placeholder odds (1/500, 1/5000) that badly understated how often these fire -- with this
+  // word list, ~76% of rolls contain SOME 3-4 letter scrambled word, which is why "Scrambled
+  // Word" was dominating every result's EP despite being displayed as if it were rare.
+  if (name === "Scrambled Long Word") return 0.04878883233208523; // 5-6 letter anagram match, ~1 in 20.5
+  if (name === "Scrambled Word") return 0.7560909903157552; // 3-4 letter anagram match, ~1 in 1.3
   if (name.indexOf("Word") !== -1) return 1 - Math.pow(1 - Math.pow(26, -((badge.wordLength || 3))), 7 - (badge.wordLength || 3));
   if (name === "Full Run") return 2 * 21 / ROLL_SPACE;
   if (name === "Long Run") return 2 * 22 / Math.pow(26, 5);
@@ -865,7 +884,10 @@ function computeRoll(letters) {
   else if (maxCount === 5) badges.push({ family: "repeat", name: "Quintuple", ep: 800, desc: "Five matching letters", rarity: "legendary", positions: repeatPositions });
   else if (maxCount === 4) badges.push({ family: "repeat", name: "Quadruple", ep: 200, desc: "Four matching letters", rarity: "epic", positions: repeatPositions });
   else if (maxCount === 3) badges.push({ family: "repeat", name: "Triple", ep: 40, desc: "Three matching letters", rarity: "rare", positions: repeatPositions });
-  else if (maxCount === 2) badges.push({ family: "repeat", name: "Pair", ep: 5, desc: "A repeated letter", rarity: "common", positions: repeatPositions });
+  else if (maxCount === 2) {
+    var adjacentRepeat = findAdjacentRepeat(letters);
+    if (adjacentRepeat) badges.push({ family: "repeat", name: "Pair", ep: 5, desc: "Two identical letters sit side by side", rarity: "common", positions: adjacentRepeat });
+  }
 
   var runSpan = findRunSpan(letters);
   var run = runSpan ? runSpan.len : 1;
@@ -979,16 +1001,14 @@ function playBadgeTone(index) {
 async function renderResult(letters, res, leaderboard) {
   var panel = document.getElementById("result");
   var tierColor = TIER_COLORS[res.tier] || TIER_COLORS.Trash;
-  panel.style.setProperty("--tier-color", tierColor);
+  // Start at the "Trash" tier color since the running total starts at 0 EP -- the color/glow
+  // will climb through the tiers live as badges stack up, instead of jumping straight to the
+  // final rarity before the reveal has even played.
+  panel.style.setProperty("--tier-color", TIER_COLORS.Trash);
 
   document.getElementById("resultTitle").textContent = letters.join("");
 
   var rollRarity = document.getElementById("rollRarity");
-  var topPercent = topPercentForEP(res.totalEP, leaderboard);
-  rollRarity.textContent = res.tier + " · Top " + topPercent + "%";
-  rollRarity.style.color = tierColor;
-  rollRarity.style.background = "color-mix(in srgb, " + tierColor + " 14%, transparent)";
-  rollRarity.className = "roll-rarity show";
 
   var sortedBadges = res.badges.slice().sort(function (a, b) { return a.ep - b.ep; });
   var list = document.getElementById("badgeList");
@@ -1016,6 +1036,9 @@ async function renderResult(letters, res, leaderboard) {
       "<span class='badge-ep'>+" + b.ep + " EP</span>";
     list.insertBefore(li, list.firstChild);
     runningEP += b.ep;
+    // Recolor the running total (and its glow) to match the rarity tier of the EP accumulated
+    // so far, so the color visibly climbs as bigger badges land instead of being fixed upfront.
+    panel.style.setProperty("--tier-color", TIER_COLORS[tierForEP(runningEP)] || TIER_COLORS.Trash);
     playBadgeTone(i);
     animateCount(totalEl, runningEP, 320);
     await new Promise(function (resolve) { setTimeout(resolve, 420 + i * 160); });
@@ -1023,6 +1046,15 @@ async function renderResult(letters, res, leaderboard) {
 
   var sup = document.getElementById("supporting");
   sup.textContent = res.supporting.length ? ("Also spotted: " + res.supporting.join(", ")) : "";
+
+  // Reveal the rarity pill only now that every badge has landed and the running total has
+  // settled on its final tier color, instead of announcing the result before the reveal plays.
+  panel.style.setProperty("--tier-color", tierColor);
+  var topPercent = topPercentForEP(res.totalEP, leaderboard);
+  rollRarity.textContent = res.tier + " · Top " + topPercent + "%";
+  rollRarity.style.color = tierColor;
+  rollRarity.style.background = "color-mix(in srgb, " + tierColor + " 14%, transparent)";
+  rollRarity.className = "roll-rarity show";
 
   if (res.tier === "Epic") spawnConfetti([TIER_COLORS.Epic, TIER_COLORS.Rare, "#ffffff"], 16);
   else if (res.tier === "Legendary") spawnConfetti([TIER_COLORS.Legendary, TIER_COLORS.Epic, "#ffffff"], 26);
