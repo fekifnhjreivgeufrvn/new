@@ -1051,7 +1051,7 @@ const HTML_PAGE = `<!DOCTYPE html>
             <div class="profile-section-heading"><span class="profile-section-kicker">01</span><h3 id="profileStatisticsTitle">Statistics</h3></div>
             <div class="profile-feature-stats">
               <div class="profile-feature-stat profile-best-stat" id="bestRollStat"><span class="profile-stat-label">Best roll</span><strong class="profile-stat-value" id="overviewBestRoll">—</strong><span class="profile-stat-meta">Leaderboard</span></div>
-              <div class="profile-feature-stat"><span class="profile-stat-label">Total EP</span><strong class="profile-stat-value" id="overviewTotalEP">—</strong><span class="profile-stat-meta">Earned from leaderboard rolls</span></div>
+              <div class="profile-feature-stat"><span class="profile-stat-label">Total EP</span><strong class="profile-stat-value" id="overviewTotalEP">—</strong><span class="profile-stat-meta">Earned from all saved rolls</span></div>
             </div>
             <div class="profile-secondary-stats">
               <div class="profile-secondary-stat"><span>Rolls</span><strong id="overviewRollCount">—</strong></div>
@@ -1353,7 +1353,7 @@ function renderPlayerOverview(summary, isCurrentUser) {
     if (summary.bestRoll) {
       bestRoll.innerHTML = '<span class="profile-best-word">' + escapeHtml(summary.bestRoll.word) + '</span> <span class="profile-best-ep">' + Number(summary.bestRoll.ep || 0).toLocaleString() + ' EP</span>';
     } else {
-      bestRoll.textContent = "No leaderboard rolls yet";
+      bestRoll.textContent = "No rolls yet";
     }
   }
   if (rollCount) rollCount.textContent = String(summary.rollCount || 0);
@@ -1372,7 +1372,7 @@ function renderPlayerOverview(summary, isCurrentUser) {
   if (recentRolls) {
     recentRolls.innerHTML = "";
     if (!summary.recentRolls || !summary.recentRolls.length) {
-      recentRolls.innerHTML = "<div class='profile-description'>No recent leaderboard rolls.</div>";
+      recentRolls.innerHTML = "<div class='profile-description'>No recent rolls yet.</div>";
     } else {
       summary.recentRolls.forEach(function (roll) {
         var item = document.createElement("div");
@@ -2297,6 +2297,7 @@ var LB = {
       body: JSON.stringify({ name: name, word: word, ep: ep, email: email || "" })
     });
     if (!response.ok) throw new Error("Failed to save roll");
+    return await response.json();
   }
 };
 
@@ -2555,15 +2556,19 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
     localStorage.setItem("sixroll_next_roll", String(Date.now() + COOLDOWN_MS));
   }
 
-  if (rollQualifies(res.totalEP) && authState.user) {
+  if (authState.user) {
     try {
-      await LB.submit(name, letters.join(""), res.totalEP, authState.user.email);
-      addRollToLeaderboardCache({ name: name, word: letters.join(""), ep: res.totalEP, ts: Date.now() });
+      var saved = await LB.submit(name, letters.join(""), res.totalEP, authState.user.email);
+      // Every signed-in roll is now saved to the player's profile. Only add it
+      // to the client leaderboard cache when the server confirms it entered top 20.
+      if (saved && saved.leaderboard) {
+        addRollToLeaderboardCache({ name: name, word: letters.join(""), ep: res.totalEP, ts: Date.now() });
+      }
       if (window.location.pathname === "/account" || window.location.pathname.startsWith("/account/")) {
         initializeAccountOverview().catch(function () {});
       }
     } catch (e) {
-      showToast("Couldn't save this leaderboard roll");
+      showToast("Couldn't save your roll");
     }
   }
   syncCooldownUI();
@@ -2691,7 +2696,9 @@ refreshAuthState().then(function () {
 
 const KV_KEY = "rolls";
 const ROLL_INDEX_KEY = "roll_index";
+const PROFILE_PREFIX = "profile:";
 const MAX_ROLLS = 500;
+const MAX_PROFILE_RECENT = 20;
 const MAX_LEADERBOARD = 20;
 const AUTH_COOKIE = "sixroll_auth";
 const AUTH_USERS_KEY = "auth_users";
@@ -2769,7 +2776,7 @@ export default {
       }
       const name = String(body.name || "").trim().slice(0, 20);
       const users = await getAuthUsers(env);
-      const stored = users.find((entry) => entry.email === user.email);
+      const stored = users.find((entry) => String(entry.username || entry.email || "").toLowerCase() === String(user.username || user.email || "").toLowerCase());
       if (stored) {
         stored.name = name;
         await env.PLAYERS.put(AUTH_USERS_KEY, JSON.stringify(users));
@@ -2791,52 +2798,60 @@ export default {
       const playerName = decodeURIComponent(url.pathname.slice("/api/player/".length)).trim();
       if (!playerName) return json({ error: "Player name required" }, 404);
 
-      const rolls = await getRolls(env);
-      const normalized = playerName.toLowerCase();
       const users = await getAuthUsers(env);
-
-      // A signed-in user's rolls are stored against their display name AND
-      // their account email. The old profile lookup only matched the display
-      // name, while the self-profile route requested the account email.
-      // Resolve the requested identity first, then match both forms.
+      const normalized = playerName.toLowerCase();
       const stored = users.find((entry) => {
-        const email = String(entry.email || "").toLowerCase();
-        const username = String(entry.username || "").toLowerCase();
+        const username = String(entry.username || entry.email || "").toLowerCase();
         const displayName = String(entry.name || "").toLowerCase();
-        return email === normalized || username === normalized || displayName === normalized;
+        return username === normalized || displayName === normalized;
       });
 
-      const resolvedEmail = stored ? String(stored.email || "").toLowerCase() : "";
-      const resolvedUsername = stored ? String(stored.username || stored.email || playerName) : playerName;
-      const resolvedDisplayName = stored ? String(stored.name || "") : "";
-
-      const playerRolls = rolls.filter((roll) => {
-        const rollName = String(roll.name || "").toLowerCase();
-        const rollEmail = String(roll.email || "").toLowerCase();
-        return rollName === normalized ||
-          (resolvedEmail && rollEmail === resolvedEmail) ||
-          (resolvedDisplayName && rollName === resolvedDisplayName.toLowerCase()) ||
-          (resolvedUsername && rollName === resolvedUsername.toLowerCase());
+      const username = stored ? String(stored.username || stored.email || playerName) : playerName;
+      const displayName = stored ? String(stored.name || username) : playerName;
+      const profile = await getPlayerProfile(env, username, {
+        displayName,
+        seedFromLegacy: true
       });
 
-      const rollCount = playerRolls.length;
-      const totalEP = playerRolls.reduce((sum, roll) => sum + (Number(roll.ep) || 0), 0);
-      const ranked = rolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
-      const rankFor = (roll) => {
-        if (!roll) return null;
-        const index = ranked.findIndex((entry) => entry === roll);
-        return index >= 0 ? index + 1 : null;
-      };
-      const bestRoll = playerRolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0))[0] || null;
-      const recentRolls = playerRolls.slice().sort((a, b) => (Number(b.ts) || 0) - (Number(a.ts) || 0)).slice(0, 5);
+      if (!profile) {
+        return json({
+          username,
+          displayName,
+          rollCount: 0,
+          totalEP: 0,
+          bestRoll: null,
+          recentRolls: []
+        });
+      }
+
+      const index = await getRollIndex(env);
+      const leaderboard = Array.isArray(index.leaderboard) ? index.leaderboard : [];
+      const best = profile.bestRoll || null;
+      let bestRank = null;
+      if (best) {
+        const lbIndex = leaderboard.findIndex((entry) =>
+          String(entry.name || "").toLowerCase() === String(best.name || username).toLowerCase() &&
+          String(entry.word || "") === String(best.word || "") &&
+          Number(entry.ep) === Number(best.ep) &&
+          Number(entry.ts) === Number(best.ts)
+        );
+        if (lbIndex >= 0) bestRank = lbIndex + 1;
+      }
 
       return json({
-        username: resolvedUsername,
-        displayName: resolvedDisplayName || playerName,
-        rollCount,
-        totalEP,
-        bestRoll: bestRoll ? { word: bestRoll.word, ep: bestRoll.ep, ts: bestRoll.ts, rank: rankFor(bestRoll) } : null,
-        recentRolls: recentRolls.map((r) => ({ word: r.word, ep: r.ep, ts: r.ts, rank: rankFor(r) }))
+        username: profile.username || username,
+        displayName: profile.displayName || displayName,
+        rollCount: Number(profile.rollCount) || 0,
+        totalEP: Number(profile.totalEP) || 0,
+        bestRoll: best ? { word: best.word, ep: best.ep, ts: best.ts, rank: bestRank } : null,
+        recentRolls: (profile.recentRolls || []).slice(0, MAX_PROFILE_RECENT).map((r) => ({
+          word: r.word,
+          ep: r.ep,
+          ts: r.ts,
+          rank: leaderboard.findIndex((entry) => String(entry.name || "").toLowerCase() === String(r.name || profile.username).toLowerCase() && String(entry.word || "") === String(r.word || "") && Number(entry.ep) === Number(r.ep) && Number(entry.ts) === Number(r.ts)) >= 0
+            ? leaderboard.findIndex((entry) => String(entry.name || "").toLowerCase() === String(r.name || profile.username).toLowerCase() && String(entry.word || "") === String(r.word || "") && Number(entry.ep) === Number(r.ep) && Number(entry.ts) === Number(r.ts)) + 1
+            : null
+        }))
       });
     }
 
@@ -2865,48 +2880,73 @@ export default {
       if (!name || !/^[A-Z]{6}$/.test(word) || !Number.isFinite(ep) || ep < 0) {
         return json({ error: "name, six-letter word, and non-negative numeric ep required" }, 400);
       }
+      if (!canSave) return json({ ok: false, skipped: true });
 
-      if (!canSave) {
-        return json({ ok: false, skipped: true });
-      }
+      const username = String(signedInUser.username || signedInUser.email || email || name).trim();
+      const ts = Date.now();
+      const record = { word, name, ep, ts, email: signedInUser.email || email || null, username };
 
-      const index = await getRollIndex(env);
-      const cutoff = Number(index.cutoffEp);
-      const qualifiesForRollHistory = !Number.isFinite(cutoff) || index.count < MAX_ROLLS || ep >= cutoff;
-
-      // Most rolls never make the stored top-500 history. Do not rewrite the
-      // entire KV blob for those rolls.
-      if (!qualifiesForRollHistory) {
-        return json({ ok: true, saved: false, leaderboard: false });
-      }
-
-      const rolls = await getRolls(env);
-      rolls.push({ word, name, ep, ts: Date.now(), email: signedInUser ? signedInUser.email : null });
-      rolls.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
-      const trimmed = rolls.slice(0, MAX_ROLLS);
-      const leaderboard = trimmed.slice(0, MAX_LEADERBOARD);
-      const nextIndex = {
-        count: trimmed.length,
-        cutoffEp: trimmed.length ? Number(trimmed[trimmed.length - 1].ep) || 0 : null,
-        leaderboard
+      // Every successful roll is now part of the player's own history.
+      // The profile stores aggregates + a bounded recent history, so ordinary
+      // rolls no longer disappear just because they miss the global top 20.
+      const profile = await getPlayerProfile(env, username, {
+        displayName: name,
+        seedFromLegacy: true
+      }) || {
+        username,
+        displayName: name,
+        rollCount: 0,
+        totalEP: 0,
+        bestRoll: null,
+        recentRolls: []
       };
 
-      // Keep the existing rolls key for profile/admin compatibility, while
-      // giving leaderboard reads their own tiny, directly-addressable index.
-      await env.PLAYERS.put(KV_KEY, JSON.stringify(trimmed));
-      await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify(nextIndex));
+      profile.username = username;
+      profile.displayName = name || profile.displayName || username;
+      profile.rollCount = (Number(profile.rollCount) || 0) + 1;
+      profile.totalEP = (Number(profile.totalEP) || 0) + ep;
+      profile.bestRoll = !profile.bestRoll || ep > Number(profile.bestRoll.ep || 0) ? record : profile.bestRoll;
+      profile.recentRolls = [record].concat(Array.isArray(profile.recentRolls) ? profile.recentRolls : [])
+        .sort((a, b) => (Number(b.ts) || 0) - (Number(a.ts) || 0))
+        .slice(0, MAX_PROFILE_RECENT);
+      await env.PLAYERS.put(PROFILE_PREFIX + username.toLowerCase(), JSON.stringify(profile));
 
-      return json({
-        ok: true,
-        saved: true,
-        leaderboard: leaderboard.some((roll) => roll === trimmed[0]) ||
-          leaderboard.some((roll) => roll.word === word && roll.name === name && Number(roll.ep) === ep)
-      });
+      // Only the global top-20 index needs to be touched when this roll can
+      // actually enter it. This keeps leaderboard traffic small while player
+      // history remains complete.
+      const index = await getRollIndex(env);
+      const leaderboard = Array.isArray(index.leaderboard) ? index.leaderboard.slice() : [];
+      const qualifies = leaderboard.length < MAX_LEADERBOARD || ep >= Number(leaderboard[leaderboard.length - 1]?.ep || 0);
+      let savedToLeaderboard = false;
+
+      if (qualifies) {
+        leaderboard.push(record);
+        leaderboard.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
+        const top = leaderboard.slice(0, MAX_LEADERBOARD);
+        const cutoffEp = top.length ? Number(top[top.length - 1].ep) || 0 : null;
+        await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({
+          count: top.length,
+          cutoffEp,
+          leaderboard: top
+        }));
+        savedToLeaderboard = top.some((roll) => roll.word === word && roll.name === name && Number(roll.ep) === ep && Number(roll.ts) === ts);
+      }
+
+      return json({ ok: true, saved: true, leaderboard: savedToLeaderboard, profile: {
+        rollCount: profile.rollCount,
+        totalEP: profile.totalEP,
+        bestRoll: profile.bestRoll
+      }});
     }
 
     if (url.pathname === "/api/reset" && request.method === "POST") {
       await env.PLAYERS.put(KV_KEY, JSON.stringify([]));
       await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({ count: 0, cutoffEp: null, leaderboard: [] }));
+      const users = await getAuthUsers(env);
+      for (const user of users) {
+        const username = String(user.username || user.email || "").trim().toLowerCase();
+        if (username) await env.PLAYERS.delete(PROFILE_PREFIX + username);
+      }
       return json({ ok: true });
     }
 
@@ -2952,6 +2992,42 @@ export default {
     return new Response("Not found", { status: 404 });
   },
 };
+
+async function getPlayerProfile(env, username, options = {}) {
+  const keyName = String(username || "").trim().toLowerCase();
+  if (!keyName) return null;
+  const key = PROFILE_PREFIX + keyName;
+  const raw = await env.PLAYERS.get(key);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") return parsed;
+    } catch {}
+  }
+
+  // Existing deployments only have the legacy top-500 roll list. Seed a
+  // profile from that data once so current users get useful stats immediately.
+  if (!options.seedFromLegacy) return null;
+  const rolls = await getRolls(env);
+  const displayName = String(options.displayName || username).trim();
+  const normalized = keyName;
+  const playerRolls = rolls.filter((roll) => {
+    const rollName = String(roll.name || "").toLowerCase();
+    const rollEmail = String(roll.email || "").toLowerCase();
+    return rollName === normalized || rollName === displayName.toLowerCase() || rollEmail === normalized || String(roll.username || "").toLowerCase() === normalized;
+  }).sort((a, b) => (Number(b.ts) || 0) - (Number(a.ts) || 0));
+  if (!playerRolls.length) return null;
+  const profile = {
+    username,
+    displayName,
+    rollCount: playerRolls.length,
+    totalEP: playerRolls.reduce((sum, roll) => sum + (Number(roll.ep) || 0), 0),
+    bestRoll: playerRolls.slice().sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0))[0],
+    recentRolls: playerRolls.slice(0, MAX_PROFILE_RECENT)
+  };
+  await env.PLAYERS.put(key, JSON.stringify(profile));
+  return profile;
+}
 
 async function getRolls(env) {
   const raw = await env.PLAYERS.get(KV_KEY);
@@ -3053,7 +3129,7 @@ async function getSessionUser(request, env) {
     }
     const users = await getAuthUsers(env);
     const user = users.find((entry) => entry.email === payload.email || entry.username === payload.email);
-    return user ? { email: user.email || user.username, name: user.name || "" } : { email: payload.email, name: "" };
+    return user ? { email: user.email || user.username, username: user.username || user.email, name: user.name || "" } : { email: payload.email, username: payload.email, name: "" };
   } catch {
     return null;
   }
