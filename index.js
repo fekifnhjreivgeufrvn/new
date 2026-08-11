@@ -1172,13 +1172,17 @@ var LB = {
     return await res.json();
   },
   submit: async function (name, word, ep) {
-    await fetch("/api/roll", {
+    var response = await fetch("/api/roll", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name, word: word, ep: ep })
     });
+    if (!response.ok) throw new Error("Failed to save roll");
   }
 };
+
+var leaderboardCache = [];
+var leaderboardLoaded = false;
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, function (c) {
@@ -1191,9 +1195,7 @@ function escapeHtml(str) {
 }
 
 var MEDALS = ["🥇", "🥈", "🥉"];
-async function loadLeaderboard() {
-  var data = [];
-  try { data = await LB.load(); } catch (e) { data = []; }
+function renderLeaderboard(data) {
   var body = document.getElementById("lbBody");
   var myName = getName().toLowerCase();
   if (!data.length) {
@@ -1217,6 +1219,26 @@ async function loadLeaderboard() {
       window.location.href = "/roll/" + encodeURIComponent(button.dataset.word) + "?name=" + encodeURIComponent(button.dataset.player) + "&ep=" + encodeURIComponent(button.dataset.ep);
     });
   });
+}
+
+async function loadLeaderboard() {
+  if (!leaderboardLoaded) {
+    try { leaderboardCache = await LB.load(); } catch (e) { leaderboardCache = []; }
+    leaderboardLoaded = true;
+  }
+  leaderboardCache.sort(function (a, b) { return (Number(b.ep) || 0) - (Number(a.ep) || 0); });
+  renderLeaderboard(leaderboardCache);
+}
+
+function rollQualifies(ep) {
+  return leaderboardCache.length < 20 || Number(ep) >= (Number(leaderboardCache[leaderboardCache.length - 1].ep) || 0);
+}
+
+function addRollToLeaderboardCache(record) {
+  leaderboardCache.push(record);
+  leaderboardCache.sort(function (a, b) { return (Number(b.ep) || 0) - (Number(a.ep) || 0); });
+  leaderboardCache = leaderboardCache.slice(0, 20);
+  renderLeaderboard(leaderboardCache);
 }
 
 function showRollDetail(word, player, ep) {
@@ -1335,6 +1357,7 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
   var btn = document.getElementById("rollBtn");
   btn.disabled = true;
   btn.classList.add("is-rolling");
+  if (!leaderboardLoaded) await loadLeaderboard();
   document.getElementById("rollRarity").classList.remove("show");
   document.getElementById("rollRarity").textContent = "";
   document.getElementById("result").classList.remove("show");
@@ -1348,18 +1371,23 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
   }
 
   var res = computeRoll(letters);
-  var leaderboard = [];
-  try { leaderboard = await LB.load(); } catch (e) {}
-  await renderResult(letters, res, leaderboard);
+  await renderResult(letters, res, leaderboardCache);
 
   var unlimited = localStorage.getItem("sixroll_unlimited") === "1";
   if (!unlimited) {
     localStorage.setItem("sixroll_next_roll", String(Date.now() + COOLDOWN_MS));
   }
 
-  try { await LB.submit(name, letters.join(""), res.totalEP); } catch (e) {}
-
-  await loadLeaderboard();
+  if (rollQualifies(res.totalEP)) {
+    try {
+      await LB.submit(name, letters.join(""), res.totalEP);
+      addRollToLeaderboardCache({ name: name, word: letters.join(""), ep: res.totalEP, ts: Date.now() });
+    } catch (e) {
+      showToast("Couldn't save this leaderboard roll");
+    }
+  } else {
+    showToast("Roll complete — not in the top 20");
+  }
   syncCooldownUI();
   tickCooldownText();
   btn.classList.remove("is-rolling");
@@ -1440,6 +1468,7 @@ async function recalcAllScores() {
     var out = await save.json();
     adminLog("Done — " + out.count + " scores saved, " + changed + " updated to the new formula.");
     showToast("Recalculated " + changed + " score" + (changed === 1 ? "" : "s"));
+    leaderboardLoaded = false;
     await loadLeaderboard();
   } catch (err) {
     adminLog("Error: " + (err && err.message ? err.message : "recalculation failed"));
