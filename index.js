@@ -615,12 +615,13 @@ function isStrictlyDescending(letters) {
 }
 
 var ROLL_SPACE = Math.pow(26, 6);
-// EP now follows a power curve on rarity (1/probability) instead of a flat log scale,
-// so common badges stay modest while the rarest possible pulls spike dramatically.
-// Calibrated so a ~1%-chance badge lands around 2,000 EP and the single rarest
-// possible badge (~1 in 530 million) lands around 160,000,000 EP.
-var EP_CURVE_BASE = 70;
-var EP_CURVE_EXPONENT = 0.73;
+// EP follows a steep power curve on rarity (1/probability), so common badges stay
+// modest while the rarest possible pulls spike dramatically. The super-linear
+// exponent (>1) is what creates the noticeable gap between an ordinary roll and a
+// special one: a ~1%-chance badge lands around 4,000 EP, a quintuple (5-of-a-kind)
+// spikes to ~7.8M EP, and a sextuple/full-run-of-6 explodes past 1 billion EP.
+var EP_CURVE_BASE = 40;
+var EP_CURVE_EXPONENT = 1.08;
 var probabilityCache = {};
 
 function choose(n, k) {
