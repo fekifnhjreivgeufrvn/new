@@ -296,10 +296,19 @@ const HTML_PAGE = `<!DOCTYPE html>
   .lb-body-row.me { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   .lb-rank { font-weight: 700; color: var(--text-3); }
   .lb-word { font-family: "Space Mono", monospace; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-word-btn { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 3px; }
+  .lb-word-btn:hover { text-decoration-color: currentColor; }
   .lb-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lb-ep { font-family: "Space Mono", monospace; font-weight: 700; }
   .lb-rolls, .lb-best { font-family: "Space Mono", monospace; color: var(--text-2); font-size: .8rem; }
   .lb-empty { padding: 26px; text-align: center; color: var(--text-3); font-size: .85rem; }
+  .detail-card { display: none; margin-top: 26px; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); }
+  .detail-card.show { display: block; }
+  .detail-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 7px 11px; cursor: pointer; font: 600 .78rem inherit; }
+  .detail-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 14px 0 4px; }
+  .detail-word { font: 700 1.45rem "Space Mono", monospace; }
+  .detail-meta { color: var(--text-2); font-size: .8rem; }
+  .detail-list { margin: 16px 0 0; }
 
   /* ---------- admin panel ---------- */
   .admin-panel {
@@ -410,6 +419,16 @@ const HTML_PAGE = `<!DOCTYPE html>
       </div>
     </section>
 
+    <section class="detail-card" id="rollDetail" aria-live="polite">
+      <button class="detail-back" id="detailBack" type="button">Back to leaderboard</button>
+      <div class="detail-heading">
+        <span class="detail-word" id="detailWord"></span>
+        <span class="detail-meta" id="detailMeta"></span>
+      </div>
+      <div class="detail-meta" id="detailSummary"></div>
+      <ul class="badge-list detail-list" id="detailBadgeList"></ul>
+    </section>
+
     <section class="admin-panel" id="adminPanel" hidden aria-label="Admin tools">
       <div class="admin-head">
         <h2><span>🛠️</span> Admin Mode</h2>
@@ -433,6 +452,7 @@ var VOWELS = { A: 1, E: 1, I: 1, O: 1, U: 1 };
 var KEYBOARD_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 var SCRABBLE_VALUES = { A: 1, B: 3, C: 3, D: 2, E: 1, F: 4, G: 2, H: 4, I: 1, J: 8, K: 5, L: 1, M: 3, N: 1, O: 1, P: 3, Q: 10, R: 1, S: 1, T: 1, U: 1, V: 4, W: 4, X: 8, Y: 4, Z: 10 };
 var RARE_LETTERS = { J: 1, Q: 1, X: 1, Z: 1, V: 1, W: 1, K: 1 };
+var PRIME_LETTERS = { B: 1, C: 1, E: 1, G: 1, K: 1, M: 1, Q: 1, S: 1, W: 1 };
 var SYMMETRIC_LETTERS = { B: 1, C: 1, D: 1, E: 1, H: 1, I: 1, K: 1, O: 1, X: 1 };
 var ROMAN_LETTERS = { I: 1, V: 1, X: 1, L: 1, C: 1, D: 1, M: 1 };
 var ANAGRAM_WORDS = {};
@@ -738,6 +758,15 @@ function badgeProbability(badge) {
   var name = badge.name;
   if (name === "Six Letters") return 1;
   if (name === "Rainbow") return (26 * 25 * 24 * 23 * 22 * 21) / ROLL_SPACE;
+  if (name === "Prime Letters") return Math.pow(9 / 26, 6);
+  if (name === "Half Split") return choose(6, 3) * Math.pow(13 / 26, 6);
+  if (name === "Vowel Variety") {
+    var vowelCoverage = 0;
+    for (var omitted = 0; omitted <= 5; omitted++) vowelCoverage += (omitted % 2 ? -1 : 1) * choose(5, omitted) * Math.pow(26 - omitted, 6);
+    return vowelCoverage / ROLL_SPACE;
+  }
+  if (name === "Alphabet Bookends") return 1 - 2 * Math.pow(25 / 26, 6) + Math.pow(24 / 26, 6);
+  if (name === "Solo Rare") return binomialProbability(6, 1, 7, 26);
   if (name === "Double Trouble") return choose(26, 2) * choose(24, 2) * factorial(6) / (4 * ROLL_SPACE);
   if (name === "Rising Star" || name === "Falling Star") return choose(26, 6) / ROLL_SPACE;
   if (name === "Bargain Bin") return scrabbleSumProbability(function (sum) { return sum <= 8; });
@@ -832,13 +861,12 @@ function colorForEP(ep) {
   return TIER_COLORS[tierForEP(ep)] || TIER_COLORS.Trash;
 }
 
-function topPercentForEP(ep, leaderboard) {
+function rankForEP(ep, leaderboard) {
   var scores = (leaderboard || []).map(function (player) { return Number(player.ep) || 0; });
   scores.push(ep);
   scores.sort(function (a, b) { return b - a; });
   var rank = scores.indexOf(ep) + 1;
-  var percent = Math.ceil((rank / scores.length) * 100);
-  return Math.max(1, Math.min(100, percent));
+  return rank <= 20 ? rank : null;
 }
 
 function computeRoll(letters) {
@@ -891,6 +919,18 @@ function computeRoll(letters) {
   for (var u = 0; u < letters.length; u++) uniqueLetters[letters[u]] = (uniqueLetters[letters[u]] || 0) + 1;
   var uniqueCount = Object.keys(uniqueLetters).length;
   if (uniqueCount === 6) badges.push({ family: "distinct", name: "Rainbow", ep: 18, desc: "All six letters are different", rarity: "uncommon", positions: [0,1,2,3,4,5] });
+  var primePositions = [], halfSplitCount = 0, rarePositionsExact = [];
+  for (var special = 0; special < letters.length; special++) {
+    if (PRIME_LETTERS[letters[special]]) primePositions.push(special);
+    if (letters[special] <= "M") halfSplitCount++;
+    if (RARE_LETTERS[letters[special]]) rarePositionsExact.push(special);
+  }
+  if (primePositions.length === 6) badges.push({ family: "alphabet", name: "Prime Letters", ep: 20, desc: "Every letter has a prime alphabet position", rarity: "rare", positions: primePositions });
+  if (halfSplitCount === 3) badges.push({ family: "alphabet", name: "Half Split", ep: 14, desc: "Three letters from each half of the alphabet", rarity: "uncommon", positions: [0,1,2,3,4,5] });
+  if (letters.indexOf("A") !== -1 && letters.indexOf("Z") !== -1) {
+    badges.push({ family: "alphabet", name: "Alphabet Bookends", ep: 35, desc: "The roll contains both A and Z", rarity: "rare", positions: letters.reduce(function (positions, letter, index) { if (letter === "A" || letter === "Z") positions.push(index); return positions; }, []) });
+  }
+  if (rarePositionsExact.length === 1) badges.push({ family: "rare", name: "Solo Rare", ep: 18, desc: "Exactly one rare letter", rarity: "uncommon", positions: rarePositionsExact });
   var pairCount = 0;
   for (var pairLetter in uniqueLetters) if (uniqueLetters[pairLetter] === 2) pairCount++;
   if (pairCount === 2 && uniqueCount === 4) badges.push({ family: "distinct", name: "Double Trouble", ep: 24, desc: "Exactly two separate pairs", rarity: "rare", positions: null });
@@ -962,6 +1002,9 @@ function computeRoll(letters) {
   if (vowelCount >= 4 && vowelCount <= 5) badges.push({ family: "vowel", name: "Vowel Heavy", ep: 28, desc: vowelCount + " vowels in the pull", rarity: "uncommon", positions: null });
   var vowelPositions = [];
   for (var vp = 0; vp < letters.length; vp++) if (VOWELS[letters[vp]]) vowelPositions.push(vp);
+  var vowelSet = {};
+  for (var vs = 0; vs < vowelPositions.length; vs++) vowelSet[letters[vowelPositions[vs]]] = true;
+  if (Object.keys(vowelSet).length === 5) badges.push({ family: "vowel", name: "Vowel Variety", ep: 30, desc: "All five vowel types appear", rarity: "rare", positions: vowelPositions });
   if (vowelCount >= 1 && vowelCount <= 2) badges.push({ family: "vowel", name: "Vowel Light", ep: 12, desc: vowelCount + " vowel" + (vowelCount === 1 ? "" : "s") + " in the pull", rarity: "common", positions: vowelPositions });
   var adjacentVowels = false;
   for (var av = 0; av < letters.length - 1; av++) if (VOWELS[letters[av]] && VOWELS[letters[av + 1]]) adjacentVowels = true;
@@ -1007,7 +1050,7 @@ function pickHighlightBadge(badges) {
 var BADGE_ICONS = {
   word: "🔤", anagram: "🔀", value: "💰", rare: "💎", distinct: "🌈", order: "⭐",
   range: "📏", shape: "🔷", repeat: "🔁", sequence: "📈", symmetry: "🪞", vowel: "🗣️",
-  position: "📍", keyboard: "⌨️", base: "🎲"
+  position: "📍", keyboard: "⌨️", alphabet: "🔡", base: "🎲"
 };
 
 /* ================= rendering ================= */
@@ -1095,8 +1138,8 @@ async function renderResult(letters, res, leaderboard) {
   // Reveal the rarity pill only now that every badge has landed and the running total has
   // settled on its final tier color, instead of announcing the result before the reveal plays.
   panel.style.setProperty("--tier-color", tierColor);
-  var topPercent = topPercentForEP(res.totalEP, leaderboard);
-  rollRarity.textContent = res.tier + " · Top " + topPercent + "%";
+  var rank = rankForEP(res.totalEP, leaderboard);
+  rollRarity.textContent = res.tier + (rank ? " · #" + rank : "");
   rollRarity.style.color = tierColor;
   rollRarity.style.background = "color-mix(in srgb, " + tierColor + " 14%, transparent)";
   rollRarity.className = "roll-rarity show";
@@ -1161,12 +1204,49 @@ async function loadLeaderboard() {
     var wordColor = colorForEP(Number(p.ep) || 0);
     return "<div class='lb-row lb-body-row" + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms'>" +
       "<span class='lb-rank'>" + rankDisplay + "</span>" +
-      "<span class='lb-word' style='color:" + wordColor + "'>" + escapeHtml(p.word) + "</span>" +
+      "<span class='lb-word' style='color:" + wordColor + "'><button class='lb-word-btn' type='button' data-word='" + escapeHtml(p.word) + "' data-player='" + escapeHtml(p.name) + "' data-ep='" + p.ep + "' style='color:" + wordColor + "'>" + escapeHtml(p.word) + "</button></span>" +
       "<span class='lb-name'>" + escapeHtml(p.name) + "</span>" +
       "<span class='lb-ep' style='color:" + wordColor + "'>" + p.ep + "</span>" +
       "</div>";
   }).join("");
+  body.querySelectorAll(".lb-word-btn").forEach(function (button) {
+    button.addEventListener("click", function () {
+      showRollDetail(button.dataset.word, button.dataset.player, Number(button.dataset.ep));
+    });
+  });
 }
+
+function showRollDetail(word, player, ep) {
+  var detail = document.getElementById("rollDetail");
+  var letters = word.split("");
+  var result = computeRoll(letters);
+  var color = colorForEP(ep);
+  document.getElementById("detailWord").textContent = word;
+  document.getElementById("detailWord").style.color = color;
+  document.getElementById("detailMeta").textContent = player + " · " + ep + " EP · " + tierForEP(ep);
+  document.getElementById("detailSummary").textContent = result.badges.length + " badge types found in this roll";
+  var list = document.getElementById("detailBadgeList");
+  list.innerHTML = "";
+  result.badges.slice().sort(function (a, b) { return b.ep - a.ep; }).forEach(function (badge) {
+    var badgeColor = colorForEP(badge.ep);
+    var item = document.createElement("li");
+    item.className = "badge-item rarity-" + tierForEP(badge.ep).toLowerCase();
+    item.style.setProperty("--badge-color", badgeColor);
+    var slots = "<div class='badge-slots'>";
+    for (var i = 0; i < letters.length; i++) {
+      slots += "<span class='badge-slot" + (badge.positions && badge.positions.indexOf(i) !== -1 ? " active" : "") + "'>" + letters[i] + "</span>";
+    }
+    slots += "</div>";
+    item.innerHTML = "<div><span class='badge-name'><span class='badge-icon' aria-hidden='true'>" + (BADGE_ICONS[badge.family] || "✨") + "</span>" + badge.name + "</span><span class='badge-desc'>" + badge.desc + "</span>" + slots + "</div><span class='badge-ep'>+" + badge.ep + " EP</span>";
+    list.appendChild(item);
+  });
+  detail.classList.add("show");
+  detail.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+document.getElementById("detailBack").addEventListener("click", function () {
+  document.getElementById("rollDetail").classList.remove("show");
+});
 
 /* ================= cooldown ================= */
 function getCooldownRemaining() {
