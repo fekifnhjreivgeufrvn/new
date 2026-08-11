@@ -540,6 +540,247 @@ const HTML_PAGE = `<!DOCTYPE html>
     * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   }
 
+
+  /* ---------- account/auth: badge-list visual language ----------
+     Keep account screens in the same visual system as the roll result:
+     compact 10px surfaces, a 3px accent rail, restrained borders, and
+     tier-like color washes instead of large rounded/shadowed cards. */
+  .account-page-wrap {
+    max-width: 820px;
+    padding-top: 72px;
+    gap: 18px;
+  }
+  .account-page-head {
+    text-align: left;
+    margin: 0 0 4px;
+    padding-left: 4px;
+  }
+  .account-page-emoji {
+    font-size: 1.25rem;
+    margin: 0 0 4px;
+  }
+  .account-page-title {
+    font-size: 1.15rem;
+    letter-spacing: .02em;
+  }
+  .account-page-subtitle {
+    font-size: .78rem;
+    line-height: 1.5;
+  }
+  .account-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .account-card,
+  .profile-overview {
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    background: var(--card-bg);
+    box-shadow: none;
+  }
+  .account-card {
+    padding: 16px;
+    gap: 14px;
+  }
+  .profile-overview {
+    margin-top: 0;
+    padding: 16px;
+    gap: 14px;
+  }
+  .auth-form {
+    gap: 8px;
+  }
+  .auth-input {
+    border-radius: 10px;
+    background: var(--surface-2);
+    padding: 11px 13px;
+    font-size: .88rem;
+  }
+  .auth-input:focus {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  .auth-btn,
+  .auth-btn-secondary {
+    border-radius: 10px;
+    padding: 10px 13px;
+    font-size: .8rem;
+    box-shadow: none;
+  }
+  .auth-btn {
+    border-left: 3px solid color-mix(in srgb, var(--accent) 70%, #fff);
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+    color: var(--accent);
+  }
+  .auth-btn-secondary {
+    background: var(--surface-2);
+    color: var(--text-2);
+  }
+  .auth-btn:hover,
+  .auth-btn-secondary:hover {
+    border-color: var(--border-strong);
+    opacity: 1;
+  }
+  .auth-btn-block {
+    margin-top: 8px;
+  }
+  .auth-divider {
+    margin: 14px 0;
+  }
+  .auth-profile {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border-left: 3px solid var(--accent);
+    background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  }
+  .auth-avatar {
+    width: 42px;
+    height: 42px;
+    font-size: 1rem;
+  }
+  .auth-email {
+    font-size: .86rem;
+  }
+  .auth-subtitle {
+    font-size: .72rem;
+  }
+  .name-field {
+    padding: 8px 11px;
+    margin: 0 0 6px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .name-field:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .name-field label {
+    width: auto;
+    min-width: 92px;
+    font-size: .6rem;
+  }
+  .name-field input {
+    font-size: .88rem;
+  }
+  .account-actions {
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .auth-status {
+    margin-top: 8px;
+  }
+
+  .profile-header {
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .profile-title {
+    font-size: 1.05rem;
+  }
+  .profile-subtitle {
+    font-size: .8rem;
+  }
+  .profile-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .profile-field {
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    padding: 11px 13px 11px 15px;
+    background: var(--surface-2);
+    box-shadow: none;
+  }
+  .profile-field::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: var(--accent);
+  }
+  .profile-field-label {
+    font-size: .6rem;
+    margin-bottom: 3px;
+  }
+  .profile-field-value {
+    font-size: .88rem;
+  }
+  .profile-section-title {
+    margin: 0 0 8px;
+    font-size: .72rem;
+  }
+  .recent-rolls {
+    gap: 8px;
+  }
+  .recent-rolls #recentRolls {
+    gap: 8px;
+  }
+  .recent-roll {
+    position: relative;
+    overflow: hidden;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 10px 13px 10px 15px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    box-shadow: none;
+  }
+  .recent-roll-word {
+    font-size: .88rem;
+  }
+  .recent-roll-meta {
+    gap: 7px;
+    font-size: .7rem;
+  }
+  .recent-roll-ep {
+    color: var(--accent);
+  }
+  .account-back-link {
+    width: auto;
+    max-width: none;
+    justify-content: flex-start;
+    margin: 0;
+    padding: 4px 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-3);
+    font-size: .72rem;
+  }
+  .account-back-link:hover {
+    background: transparent;
+    border-color: transparent;
+    color: var(--accent);
+  }
+
+
+  .recent-roll.rarity-trash { border-left-color: var(--badge-color); background: color-mix(in srgb, var(--badge-color) 4%, var(--surface)); }
+  .recent-roll.rarity-common { border-left-color: var(--badge-color); background: color-mix(in srgb, var(--badge-color) 8%, var(--surface)); }
+  .recent-roll.rarity-uncommon { border-left-color: var(--badge-color); background: color-mix(in srgb, var(--badge-color) 12%, var(--surface)); }
+  .recent-roll.rarity-rare { border-left-color: var(--badge-color); background: linear-gradient(110deg, color-mix(in srgb, var(--badge-color) 16%, var(--surface)), var(--surface)); }
+  .recent-roll.rarity-epic { border-left-color: var(--badge-color); background: linear-gradient(110deg, color-mix(in srgb, var(--badge-color) 22%, var(--surface)), color-mix(in srgb, var(--badge-color) 5%, var(--surface))); box-shadow: 0 0 18px -8px var(--badge-color); }
+  .recent-roll.rarity-legendary,
+  .recent-roll.rarity-mythic,
+  .recent-roll.rarity-divine,
+  .recent-roll.rarity-cosmic {
+    border-left-color: var(--badge-color);
+    background: linear-gradient(110deg, color-mix(in srgb, var(--badge-color) 28%, var(--surface)), color-mix(in srgb, var(--badge-color) 8%, var(--surface)), color-mix(in srgb, var(--badge-color) 22%, var(--surface)));
+    background-size: 180% 100%;
+    animation: badgeGradient 3s ease-in-out infinite;
+    box-shadow: 0 0 18px -8px var(--badge-color);
+  }
+  .recent-roll.rarity-mythic,
+  .recent-roll.rarity-divine,
+  .recent-roll.rarity-cosmic {
+    animation-duration: 2.2s;
+  }
+
   /* ---------- responsive ---------- */
   @media (max-width: 680px) {
     .account-grid { grid-template-columns: 1fr; }
@@ -596,7 +837,7 @@ const HTML_PAGE = `<!DOCTYPE html>
             <button id="loginBtn" class="auth-btn auth-btn-block" type="button">Log in</button>
             <div class="auth-divider"><span>or</span></div>
             <button id="showRegisterBtn" class="auth-btn-secondary auth-btn-block" type="button">Create an account</button>
-            <div id="registerPanel" style="display:none;margin-top:16px;border-top:1px dashed var(--border);padding-top:16px;">
+            <div id="registerPanel" style="display:none;margin-top:12px;border-top:1px dashed var(--border);padding-top:12px;">
               <p class="auth-hint">Takes a few seconds — no email required.</p>
               <div class="auth-form">
                 <input id="regUsernameInput" class="auth-input" type="text" placeholder="Choose a username">
@@ -951,6 +1192,9 @@ function renderPlayerOverview(summary, isCurrentUser) {
       summary.recentRolls.forEach(function (roll) {
         var item = document.createElement("div");
         item.className = "recent-roll";
+        var recentTier = tierForEP(roll.ep).toLowerCase();
+        item.classList.add("rarity-" + recentTier);
+        item.style.setProperty("--badge-color", colorForEP(roll.ep));
         var main = document.createElement("div");
         main.className = "recent-roll-main";
         main.innerHTML = "<span class='recent-roll-word'>" + escapeHtml(roll.word) + "</span>" +
