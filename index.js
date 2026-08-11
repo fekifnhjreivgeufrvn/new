@@ -317,6 +317,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   html.leaderboard-page .hero-card, html.leaderboard-page .result-card, html.leaderboard-page .detail-card, html.leaderboard-page .admin-panel { display: none; }
   html.leaderboard-page .container { max-width: 720px; padding-top: 34px; }
   html.leaderboard-page .leaderboard { margin-top: 0; }
+  html:not(.leaderboard-page):not(.detail-page) .leaderboard { display: none; }
   .detail-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 7px 11px; cursor: pointer; font: 600 .78rem inherit; }
   .detail-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 14px 0 4px; }
   .detail-word { font: 700 1.45rem "Space Mono", monospace; }
