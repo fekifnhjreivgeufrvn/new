@@ -818,6 +818,17 @@ const HTML_PAGE = `<!DOCTYPE html>
   @media(max-width:700px){html.account-page .container{padding-top:44px}.account-page-wrap.public-profile{width:min(100%,640px)}.profile-identity{gap:13px;padding-bottom:22px}.profile-identity .auth-avatar{width:56px;height:56px;border-radius:14px;font-size:1.05rem}.profile-feature-stats{grid-template-columns:1fr}.profile-feature-stat{min-height:96px}.profile-secondary-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-secondary-stat:last-child{grid-column:1/-1}}
   @media(max-width:430px){.profile-display-name{font-size:1.35rem}.profile-identity .profile-subtitle{display:none}}
 
+  @media (max-width: 760px) {
+    .account-page-wrap.profile-active {
+      width: min(100%, 680px);
+      padding-inline: 14px;
+    }
+  }
+  @media (min-width: 761px) {
+    .account-page-wrap.profile-active {
+      width: min(100%, 680px);
+    }
+  }
   /* ---------- responsive ---------- */
   @media (max-width: 680px) {
     .account-grid { grid-template-columns: 1fr; }
@@ -914,6 +925,18 @@ const HTML_PAGE = `<!DOCTYPE html>
               <h2 class="profile-display-name" id="overviewTitle">Player</h2>
               <p class="profile-username" id="overviewUsername">#username</p>
               <p class="profile-subtitle" id="overviewSubtitle">Your rolls, stats, and leaderboard history.</p>
+              <div class="profile-identity-actions">
+                <button type="button" class="profile-edit-btn profile-edit-name-btn" id="editDisplayNameBtn" aria-label="Edit display name" title="Edit display name">✎</button>
+                <button type="button" class="profile-signout-btn" id="profileSignOutBtn">Sign out</button>
+              </div>
+              <div class="profile-inline-editor" id="profileInlineEditor" hidden>
+                <label for="profileDisplayNameInput">Display name</label>
+                <div class="profile-inline-editor-row">
+                  <input id="profileDisplayNameInput" maxlength="20" placeholder="Set your public name">
+                  <button type="button" class="profile-editor-save" id="profileSaveNameBtn">Save</button>
+                  <button type="button" class="profile-editor-cancel" id="profileCancelNameBtn">Cancel</button>
+                </div>
+              </div>
             </div>
           </header>
           <section class="profile-section" aria-labelledby="profileStatisticsTitle">
@@ -925,7 +948,7 @@ const HTML_PAGE = `<!DOCTYPE html>
             <div class="profile-secondary-stats">
               <div class="profile-secondary-stat"><span>Rolls</span><strong id="overviewRollCount">—</strong></div>
               <div class="profile-secondary-stat"><span>Account</span><strong id="overviewUsernameSecondary">—</strong></div>
-              <div class="profile-secondary-stat profile-editable-stat"><span>Display name</span><strong id="overviewDisplayName">—</strong><button type="button" class="profile-edit-btn" id="editDisplayNameBtn" aria-label="Edit display name" title="Edit display name">✎</button></div>
+              <div class="profile-secondary-stat"><span>Display name</span><strong id="overviewDisplayName">—</strong></div>
             </div>
           </section>
           <section class="profile-section profile-roll-history" id="recentRollsSection" aria-labelledby="rollHistoryTitle">
@@ -1200,7 +1223,9 @@ function formatTimestamp(ts) {
 
 function renderPlayerOverview(summary, isCurrentUser) {
   var overview = document.getElementById("accountOverview");
+  var pageWrap = document.getElementById("accountPageWrap");
   if (!overview) return;
+  if (pageWrap) pageWrap.classList.toggle("profile-active", !!isCurrentUser);
   var title = document.getElementById("overviewTitle");
   var subtitle = document.getElementById("overviewSubtitle");
   var avatar = document.getElementById("overviewAvatar");
@@ -1210,12 +1235,24 @@ function renderPlayerOverview(summary, isCurrentUser) {
   var rollCount = document.getElementById("overviewRollCount");
   var recentRolls = document.getElementById("recentRolls");
   if (avatar) avatar.textContent = (summary.displayName || summary.username || "?").trim().charAt(0).toUpperCase() || "?";
-  if (title) title.textContent = isCurrentUser ? "Your account overview" : "Player overview";
-  if (subtitle) subtitle.textContent = isCurrentUser ? "Manage your display name, and review your leaderboard history." : "See leaderboard activity and top rolls for this player.";
-  if (username) username.textContent = summary.username || "—";
+  if (title) title.textContent = summary.displayName || summary.username || "Player";
+  if (subtitle) subtitle.textContent = isCurrentUser ? "Your rolls, stats, and leaderboard history." : "Leaderboard activity and top rolls for this player.";
+  if (username) username.textContent = summary.username ? "#" + summary.username : "#—";
   if (displayName) displayName.textContent = summary.displayName || "—";
   if (bestRoll) bestRoll.textContent = summary.bestRoll ? summary.bestRoll.word + " (" + summary.bestRoll.ep + " EP)" : "No leaderboard rolls yet";
   if (rollCount) rollCount.textContent = String(summary.rollCount || 0);
+  var totalEP = Number(summary.totalEP != null ? summary.totalEP : (summary.totalEp != null ? summary.totalEp : 0)) || 0;
+  var totalEPEl = document.getElementById("overviewTotalEP");
+  if (totalEPEl) totalEPEl.textContent = totalEP.toLocaleString() + " EP";
+  var bestRollStat = document.getElementById("bestRollStat");
+  if (bestRollStat && summary.bestRoll) {
+    var bestTier = tierForEP(Number(summary.bestRoll.ep) || 0);
+    var bestColor = colorForEP(Number(summary.bestRoll.ep) || 0);
+    bestRollStat.className = "profile-feature-stat profile-best-stat rarity-" + bestTier.toLowerCase();
+    bestRollStat.style.setProperty("--badge-color", bestColor);
+    var bestMeta = bestRollStat.querySelector(".profile-stat-meta");
+    if (bestMeta) bestMeta.textContent = bestTier + " · Leaderboard";
+  }
   if (recentRolls) {
     recentRolls.innerHTML = "";
     if (!summary.recentRolls || !summary.recentRolls.length) {
@@ -1229,8 +1266,9 @@ function renderPlayerOverview(summary, isCurrentUser) {
         item.style.setProperty("--badge-color", colorForEP(roll.ep));
         var main = document.createElement("div");
         main.className = "recent-roll-main";
+        var recentTierLabel = tierForEP(roll.ep);
         main.innerHTML = "<span class='recent-roll-word'>" + escapeHtml(roll.word) + "</span>" +
-          "<span class='recent-roll-meta'><span class='recent-roll-ep'>" + roll.ep + " EP</span><span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
+          "<span class='recent-roll-meta'><span class='recent-roll-rarity'>" + recentTierLabel + "</span><span class='recent-roll-ep'>" + roll.ep + " EP</span><span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
         item.appendChild(main);
         recentRolls.appendChild(item);
       });
@@ -1267,19 +1305,19 @@ async function initializeAccountOverview(explicitName) {
     if (overviewEl) overviewEl.hidden = isCurrentUser;
 
     if (isCurrentUser) {
-      if (pageTitle) pageTitle.textContent = "Your account";
-      if (pageSubtitle) pageSubtitle.textContent = "Manage your display name, or sign out below.";
+      if (pageTitle) pageTitle.textContent = "";
+      if (pageSubtitle) pageSubtitle.textContent = "";
     } else {
       if (pageTitle) pageTitle.textContent = "Player profile";
       if (pageSubtitle) pageSubtitle.textContent = "Public leaderboard stats for " + escapeHtml(playerName) + ".";
     }
   } else if (signedIn) {
     if (signedOutEl) signedOutEl.hidden = true;
-    if (signedInEl) signedInEl.hidden = false;
-    if (accountCard) accountCard.hidden = false;
-    if (overviewEl) overviewEl.hidden = true;
-    if (pageTitle) pageTitle.textContent = "Your account";
-    if (pageSubtitle) pageSubtitle.textContent = "Manage your display name, or sign out below.";
+    if (signedInEl) signedInEl.hidden = true;
+    if (accountCard) accountCard.hidden = true;
+    if (overviewEl) overviewEl.hidden = false;
+    if (pageTitle) pageTitle.textContent = "";
+    if (pageSubtitle) pageSubtitle.textContent = "";
   } else {
     if (signedOutEl) signedOutEl.hidden = false;
     if (signedInEl) signedInEl.hidden = true;
@@ -1307,6 +1345,59 @@ async function initializeAccountOverview(explicitName) {
     setAuthStatus("Unable to load player overview.", "error");
   }
 }
+
+// Profile-page editing mirrors the account controls without rendering the old account panel.
+(function bindProfileControls() {
+  var editBtn = document.getElementById("editDisplayNameBtn");
+  var editor = document.getElementById("profileInlineEditor");
+  var input = document.getElementById("profileDisplayNameInput");
+  var saveBtn = document.getElementById("profileSaveNameBtn");
+  var cancelBtn = document.getElementById("profileCancelNameBtn");
+  var signOutBtn = document.getElementById("profileSignOutBtn");
+
+  function closeEditor() {
+    if (editor) editor.hidden = true;
+  }
+
+  if (editBtn) editBtn.addEventListener("click", function () {
+    if (!editor || !input) return;
+    input.value = authState.user && authState.user.name ? authState.user.name : "";
+    editor.hidden = false;
+    input.focus();
+    input.select();
+  });
+
+  if (cancelBtn) cancelBtn.addEventListener("click", closeEditor);
+
+  if (saveBtn) saveBtn.addEventListener("click", async function () {
+    if (!authState.user || !input) return;
+    var name = (input.value || "").trim().slice(0, 20);
+    saveBtn.disabled = true;
+    try {
+      var response = await fetch("/api/auth/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name })
+      });
+      var data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to save your profile");
+      authState.user = data.user || authState.user;
+      closeEditor();
+      updateAuthUI();
+      await initializeAccountOverview();
+      showToast("Profile updated");
+    } catch (e) {
+      setAuthStatus(e.message || "Unable to save your profile.", "error");
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  if (signOutBtn) signOutBtn.addEventListener("click", function () {
+    var existing = document.getElementById("signOutBtn");
+    if (existing) existing.click();
+  });
+})();
 
 // Password login/register UI behavior
 document.getElementById("showRegisterBtn").addEventListener("click", function () {
