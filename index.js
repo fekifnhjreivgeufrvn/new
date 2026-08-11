@@ -1351,7 +1351,7 @@ function renderPlayerOverview(summary, isCurrentUser) {
   if (displayName) displayName.textContent = summary.displayName || "—";
   if (bestRoll) {
     if (summary.bestRoll) {
-      bestRoll.innerHTML = "<span class=\"profile-best-word\">" + escapeHtml(summary.bestRoll.word) + "</span> <span class=\"profile-best-ep\">" + Number(summary.bestRoll.ep || 0).toLocaleString() + " EP</span>";
+      bestRoll.innerHTML = '<span class="profile-best-word">' + escapeHtml(summary.bestRoll.word) + '</span> <span class="profile-best-ep">' + Number(summary.bestRoll.ep || 0).toLocaleString() + ' EP</span>';
     } else {
       bestRoll.textContent = "No leaderboard rolls yet";
     }
