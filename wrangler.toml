@@ -2,9 +2,6 @@ name = "sixroll"
 main = "index.js"
 compatibility_date = "2024-11-01"
 
-[vars]
-RESEND_FROM_EMAIL = "kiwi.martan@gmail.com"
-
 [[kv_namespaces]]
 binding = "PLAYERS"
 id = "09b9ed41c9ab4e88bacdea444b0f7e26"
