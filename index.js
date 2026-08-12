@@ -19,6 +19,19 @@ const HTML_PAGE = `<!DOCTYPE html>
   } catch (e) {}
 })();
 
+(function () {
+  try {
+    var path = window.location.pathname;
+    if (path === "/leaderboard") {
+      document.documentElement.classList.add("leaderboard-page");
+    } else if (path === "/account" || path.startsWith("/account/")) {
+      document.documentElement.classList.add("account-page");
+    } else if (path.startsWith("/roll/")) {
+      document.documentElement.classList.add("detail-page");
+    }
+  } catch (e) {}
+})();
+
   // Admin manual-score debug tool.
 (function () {
   function initManualScoreDebug() {
