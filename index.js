@@ -539,25 +539,37 @@ html.badge-detail-route .badge-detail-page { display:grid; }
   .featured-stats { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
   .featured-by { color: var(--text-3); font-size: .74rem; }
   .leaderboard h2 { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; margin: 0 0 14px; }
-  .lb-table { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--surface); }
-  .lb-row { display: grid; grid-template-columns: 36px 1fr 1fr 88px; align-items: center; gap: 8px; padding: 11px 14px; font-size: .85rem; }
-  .lb-head { color: var(--text-3); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); }
-  .lb-body-row { border-bottom: 1px solid var(--border); transition: background .2s ease; animation: rowIn .35s ease both; }
+  .lb-table { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--surface); box-shadow: 0 4px 24px -8px rgba(0,0,0,.08); }
+  .lb-row { display: grid; grid-template-columns: 36px 1fr 1fr 1fr 80px; align-items: center; gap: 12px; padding: 14px 16px; font-size: .85rem; border-radius: 8px; transition: all .2s ease; animation: rowIn .35s ease both; position: relative; overflow: hidden; }
+  .lb-row::before { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.02), transparent); pointer-events: none; opacity: 0; transition: opacity .2s ease; }
+  .lb-body-row { margin: 6px 0; border: 1px solid var(--border); background: var(--surface); }
+  .lb-body-row:hover { background: var(--surface-2); border-color: var(--border-strong); }
+  .lb-body-row:hover::before { opacity: 1; }
+  .lb-body-row.me { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border-color: var(--accent); }
   @keyframes rowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-  .lb-body-row:last-child { border-bottom: none; }
-  .lb-body-row:hover { background: var(--surface-2); }
-  .lb-body-row.me { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-  /* pulse animation for when a roll navigates to the leaderboard */
+  .lb-body-row.rank-1 { background: linear-gradient(110deg, color-mix(in srgb, #f59e0b 12%, var(--surface)), var(--surface)); border: 1.5px solid #f59e0b; box-shadow: 0 0 20px -8px #f59e0b; scale: 1.02; margin-top: 8px; margin-bottom: 8px; }
+  .lb-body-row.rank-2 { background: linear-gradient(110deg, color-mix(in srgb, #a78bff 10%, var(--surface)), var(--surface)); border: 1.5px solid #a78bff; box-shadow: 0 0 16px -8px #a78bff; scale: 1.01; }
+  .lb-body-row.rank-3 { background: linear-gradient(110deg, color-mix(in srgb, #8b5cf6 9%, var(--surface)), var(--surface)); border: 1.5px solid #8b5cf6; box-shadow: 0 0 12px -8px #8b5cf6; }
+  .lb-body-row.rarity-legendary { background: linear-gradient(110deg, color-mix(in srgb, var(--tier-legendary) 14%, var(--surface)), var(--surface)); border-color: var(--tier-legendary); }
+  .lb-body-row.rarity-mythic, .lb-body-row.rarity-divine, .lb-body-row.rarity-cosmic { background: linear-gradient(110deg, color-mix(in srgb, var(--tier-mythic) 16%, var(--surface)), var(--surface)); border-color: var(--tier-mythic); box-shadow: 0 0 16px -8px var(--tier-mythic); }
+  .lb-body-row.rarity-epic { background: linear-gradient(110deg, color-mix(in srgb, var(--tier-epic) 12%, var(--surface)), var(--surface)); border-color: var(--tier-epic); }
+  .lb-body-row.rarity-rare { border-color: var(--tier-rare); }
   .lb-row.pulse { animation: lb-pulse 2s ease-in-out 1; }
   .lb-row.pulse .lb-name { animation: lb-name-pulse 800ms ease-in-out 0s 3; }
   @keyframes lb-name-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
   @keyframes lb-pulse { 0% { box-shadow: inset 0 0 0 0 rgba(0,0,0,0); } 50% { box-shadow: inset 0 0 0 12px rgba(125,90,255,0.08); } 100% { box-shadow: inset 0 0 0 0 rgba(0,0,0,0); } }
-  .lb-rank { font-weight: 700; color: var(--text-3); }
+  .lb-head { color: var(--text-3); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  .lb-rank { font-weight: 700; color: var(--text-3); font-size: .9rem; min-width: 32px; }
+  .lb-rank.medal { font-size: 1.2rem; }
+  .lb-tier { font-size: .65rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; padding: 3px 8px; border-radius: 4px; background: rgba(255,255,255,.08); color: var(--text-3); display: inline-block; min-width: 54px; text-align: center; transition: all .2s ease; }
+  .lb-body-row:hover .lb-tier { background: rgba(255,255,255,.12); }
   .lb-word { font-family: "Space Mono", monospace; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lb-word-btn { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 3px; }
-  .lb-word-btn:hover { text-decoration-color: currentColor; }
+  .lb-word-btn { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 3px; transition: color .2s ease; }
+  .lb-word-btn:hover { text-decoration-color: currentColor; font-weight: 800; }
   .lb-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lb-ep { font-family: "Space Mono", monospace; font-weight: 700; }
+  .lb-name-btn { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; text-decoration: none; transition: all .2s ease; }
+  .lb-name-btn:hover { text-decoration: underline; font-weight: 700; }
+  .lb-ep { font-family: "Space Mono", monospace; font-weight: 700; text-align: right; }
   .lb-rolls, .lb-best { font-family: "Space Mono", monospace; color: var(--text-2); font-size: .8rem; }
   .lb-empty { padding: 26px; text-align: center; color: var(--text-3); font-size: .85rem; }
   .detail-card { display: none; margin-top: 26px; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); }
@@ -1043,6 +1055,16 @@ html.badge-detail-route .badge-detail-page { display:grid; }
   /* ---------- responsive ---------- */
   @media (max-width: 680px) {
     .account-grid { grid-template-columns: 1fr; }
+    .lb-row { grid-template-columns: 32px 1fr 1fr 1fr; gap: 8px; padding: 12px 12px; font-size: .8rem; }
+    .lb-tier { font-size: .6rem; padding: 2px 6px; min-width: 48px; }
+    .lb-ep { font-size: .8rem; }
+    .lb-rank.medal { font-size: 1.1rem; }
+  }
+  @media (max-width: 500px) {
+    .lb-row { grid-template-columns: 28px 1fr 60px; gap: 6px; padding: 10px 10px; font-size: .75rem; }
+    .lb-name { display: none; }
+    .lb-tier { display: none; }
+    .lb-rank.medal { font-size: 1rem; }
   }
 
   /* Badge detail theme hardening */
@@ -1232,7 +1254,7 @@ html.badge-detail-route .badge-detail-page { display:grid; }
       </div>
       <div class="lb-table">
         <div class="lb-row lb-head">
-          <span>#</span><span>Word</span><span>Name</span><span>EP</span>
+          <span>#</span><span>Word</span><span>Name</span><span>Rarity</span><span>EP</span>
         </div>
         <div id="lbBody"></div>
       </div>
@@ -2512,11 +2534,14 @@ function renderLeaderboard(data) {
     var wordColor = colorForEP(Number(p.ep) || 0);
     var rowTier = tierForEP(Number(p.ep) || 0);
     var rankClass = i < 3 ? " rank-" + (i + 1) : "";
-    return "<div class='lb-row lb-body-row" + rankClass + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms'>" +
-      "<span class='lb-rank'>" + rankDisplay + "</span>" +
+    var tierClass = " rarity-" + rowTier.toLowerCase();
+    var tierLabel = rowTier.charAt(0).toUpperCase() + rowTier.slice(1);
+    return "<div class='lb-row lb-body-row" + rankClass + tierClass + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms'>" +
+      "<span class='lb-rank" + (i < 3 ? " medal" : "") + "'>" + rankDisplay + "</span>" +
       "<span class='lb-word' style='color:" + wordColor + "'><button class='lb-word-btn' type='button' data-word='" + escapeHtml(p.word) + "' data-player='" + escapeHtml(p.name) + "' data-ep='" + p.ep + "' style='color:" + wordColor + "'>" + escapeHtml(p.word) + "</button></span>" +
       "<span class='lb-name'><button class='lb-name-btn' type='button' data-player='" + escapeHtml(p.name) + "'>" + escapeHtml(p.name) + "</button></span>" +
-      "<span class='lb-ep' style='color:" + wordColor + "' title='" + rowTier + "'><span class='tier-dot-mini rarity-" + rowTier.toLowerCase() + "'></span>" + p.ep + "</span>" +
+      "<span class='lb-tier' style='color:" + wordColor + "; border: 1px solid " + wordColor + "; background: color-mix(in srgb, " + wordColor + " 10%, rgba(255,255,255,.04));'>" + tierLabel + "</span>" +
+      "<span class='lb-ep' style='color:" + wordColor + "' title='" + rowTier + "'>" + Number(p.ep || 0).toLocaleString() + " EP</span>" +
       "</div>";
   }).join("");
   body.querySelectorAll(".lb-word-btn").forEach(function (button) {
