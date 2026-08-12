@@ -1001,11 +1001,18 @@ html.badge-detail-route .badge-detail-page { display:grid; }
   .account-page-wrap.public-profile{width:min(100%,720px);margin-inline:auto}
   .account-page-wrap.public-profile .account-grid{display:block;width:100%}
   .account-page-wrap.public-profile .account-card{display:none}
+  .account-page-wrap.public-profile .account-page-head{display:none !important}
   .profile-overview{width:100%;padding:0 0 20px;margin:0;background:transparent;border:0;box-shadow:none}
   .profile-identity{display:flex;align-items:center;gap:18px;padding:4px 4px 28px;text-align:left}
   .profile-identity .auth-avatar{width:68px;height:68px;border-radius:18px;font-size:1.35rem;box-shadow:0 0 0 1px var(--border),0 12px 28px -18px rgba(0,0,0,.35)}
   .profile-identity-copy{min-width:0;display:grid;gap:3px}
+  .profile-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
   .profile-display-name{margin:0;font-size:clamp(1.45rem,3vw,2rem);line-height:1.05;font-weight:850;letter-spacing:-.025em}
+  .profile-inline-editor{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .profile-inline-editor input{width:min(260px,100%);padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
+  .profile-inline-editor button{padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);cursor:pointer;font:700 .72rem inherit}
+  .profile-inline-editor .profile-editor-save{background:var(--accent);border-color:var(--accent);color:#08101b}
+  .profile-inline-editor .profile-editor-cancel{background:transparent;color:var(--text-2)}
   .profile-username{margin:0;color:var(--text-3);font-size:.82rem;font-weight:650;letter-spacing:.04em}
   .profile-identity .profile-subtitle{margin:3px 0 0;color:var(--text-2);font-size:.76rem;line-height:1.4}
   .profile-section{margin-top:12px;text-align:left}
@@ -1177,20 +1184,19 @@ html.badge-detail-route .badge-detail-page { display:grid; }
           <header class="profile-identity">
             <div class="profile-identity-avatar"><div class="auth-avatar" id="overviewAvatar" aria-hidden="true"></div></div>
             <div class="profile-identity-copy">
-              <h2 class="profile-display-name" id="overviewTitle">Player</h2>
-              <p class="profile-username" id="overviewUsername">#username</p>
-              <p class="profile-subtitle" id="overviewSubtitle">Your rolls, stats, and leaderboard history.</p>
-              <div class="profile-identity-actions">
-                <button type="button" class="profile-edit-btn profile-edit-name-btn" id="editDisplayNameBtn" aria-label="Edit display name" title="Edit display name">✎</button>
-                <button type="button" class="profile-signout-btn" id="profileSignOutBtn">Sign out</button>
-              </div>
-              <div class="profile-inline-editor" id="profileInlineEditor" hidden>
-                <label for="profileDisplayNameInput">Display name</label>
-                <div class="profile-inline-editor-row">
+              <div class="profile-name-row">
+                <h2 class="profile-display-name" id="overviewTitle">Player</h2>
+                <div class="profile-inline-editor" id="profileInlineEditor" hidden>
                   <input id="profileDisplayNameInput" maxlength="20" placeholder="Set your public name">
                   <button type="button" class="profile-editor-save" id="profileSaveNameBtn">Save</button>
                   <button type="button" class="profile-editor-cancel" id="profileCancelNameBtn">Cancel</button>
                 </div>
+                <button type="button" class="profile-edit-btn profile-edit-name-btn" id="editDisplayNameBtn" aria-label="Edit display name" title="Edit display name">✎</button>
+              </div>
+              <p class="profile-username" id="overviewUsername">#username</p>
+              <p class="profile-subtitle" id="overviewSubtitle">Your rolls, stats, and leaderboard history.</p>
+              <div class="profile-identity-actions">
+                <button type="button" class="profile-signout-btn" id="profileSignOutBtn">Sign out</button>
               </div>
             </div>
           </header>
@@ -1515,6 +1521,8 @@ function renderPlayerOverview(summary, isCurrentUser) {
   var avatar = document.getElementById("overviewAvatar");
   var username = document.getElementById("overviewUsername");
   var displayName = document.getElementById("overviewDisplayName");
+  var editBtn = document.getElementById("editDisplayNameBtn");
+  var signOutBtn = document.getElementById("profileSignOutBtn");
   var bestRoll = document.getElementById("overviewBestRoll");
   var rollCount = document.getElementById("overviewRollCount");
   var recentRolls = document.getElementById("recentRolls");
@@ -1523,6 +1531,8 @@ function renderPlayerOverview(summary, isCurrentUser) {
   if (subtitle) subtitle.textContent = isCurrentUser ? "Your rolls, stats, and leaderboard history." : "Leaderboard activity and top rolls for this player.";
   if (username) username.textContent = summary.username ? "#" + summary.username : "#—";
   if (displayName) displayName.textContent = summary.displayName || "—";
+  if (editBtn) editBtn.hidden = !isCurrentUser;
+  if (signOutBtn) signOutBtn.hidden = !isCurrentUser;
   if (bestRoll) {
     if (summary.bestRoll) {
       bestRoll.innerHTML = '<span class="profile-best-word">' + escapeHtml(summary.bestRoll.word) + '</span> <span class="profile-best-ep">' + Number(summary.bestRoll.ep || 0).toLocaleString() + ' EP</span>';
@@ -1605,8 +1615,8 @@ async function initializeAccountOverview(explicitName) {
       if (pageTitle) pageTitle.textContent = "";
       if (pageSubtitle) pageSubtitle.textContent = "";
     } else {
-      if (pageTitle) pageTitle.textContent = "Player profile";
-      if (pageSubtitle) pageSubtitle.textContent = "Public leaderboard stats for " + escapeHtml(playerName) + ".";
+      if (pageTitle) pageTitle.textContent = "";
+      if (pageSubtitle) pageSubtitle.textContent = "";
     }
   } else if (signedIn) {
     if (signedOutEl) signedOutEl.hidden = true;
@@ -1651,14 +1661,17 @@ async function initializeAccountOverview(explicitName) {
   var saveBtn = document.getElementById("profileSaveNameBtn");
   var cancelBtn = document.getElementById("profileCancelNameBtn");
   var signOutBtn = document.getElementById("profileSignOutBtn");
+  var title = document.getElementById("overviewTitle");
 
   function closeEditor() {
     if (editor) editor.hidden = true;
+    if (title) title.hidden = false;
   }
 
   if (editBtn) editBtn.addEventListener("click", function () {
-    if (!editor || !input) return;
-    input.value = authState.user && authState.user.name ? authState.user.name : "";
+    if (!editor || !input || !title) return;
+    input.value = authState.user && authState.user.name ? authState.user.name : (title.textContent || "");
+    title.hidden = true;
     editor.hidden = false;
     input.focus();
     input.select();
