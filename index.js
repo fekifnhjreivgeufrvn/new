@@ -1421,6 +1421,7 @@ function setAuthStatus(message, kind) {
 }
 
 var profileEditMode = false;
+var profileNameEditorOpen = false;
 
 function setProfileEditMode(enabled) {
   profileEditMode = enabled;
@@ -1535,8 +1536,9 @@ function renderPlayerOverview(summary, isCurrentUser) {
   if (displayName) displayName.textContent = summary.displayName || "—";
   if (editBtn) editBtn.hidden = !isCurrentUser;
   if (signOutBtn) signOutBtn.hidden = !isCurrentUser;
-  if (editor) editor.hidden = !isCurrentUser;
-  if (title && !isCurrentUser) title.hidden = false;
+  var isEditingName = !!profileNameEditorOpen && !!isCurrentUser;
+  if (editor) editor.hidden = !isEditingName;
+  if (title) title.hidden = isEditingName;
   if (bestRoll) {
     if (summary.bestRoll) {
       bestRoll.innerHTML = '<span class="profile-best-word">' + escapeHtml(summary.bestRoll.word) + '</span> <span class="profile-best-ep">' + Number(summary.bestRoll.ep || 0).toLocaleString() + ' EP</span>';
@@ -1668,6 +1670,7 @@ async function initializeAccountOverview(explicitName) {
   var title = document.getElementById("overviewTitle");
 
   function closeEditor() {
+    profileNameEditorOpen = false;
     if (editor) editor.hidden = true;
     if (title) title.hidden = false;
   }
@@ -1675,6 +1678,7 @@ async function initializeAccountOverview(explicitName) {
   if (editBtn) editBtn.addEventListener("click", function () {
     if (!editor || !input || !title) return;
     if (!authState.user || !window.location.pathname.startsWith("/account")) return;
+    profileNameEditorOpen = true;
     input.value = authState.user && authState.user.name ? authState.user.name : (title.textContent || "");
     title.hidden = true;
     editor.hidden = false;
