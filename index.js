@@ -923,7 +923,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   .profile-roll-history{margin-top:30px}
   .profile-roll-history #recentRolls{display:grid;gap:8px}
   .profile-roll-history .recent-roll{text-align:left}
-  @media(max-width:700px){html.account-page .container{padding-top:44px}.account-page-wrap.public-profile{width:min(100%,640px)}.profile-identity{gap:13px;padding-bottom:22px}.profile-identity .auth-avatar{width:56px;height:56px;border-radius:14px;font-size:1.05rem}.profile-feature-stats{grid-template-columns:1fr}.profile-feature-stat{min-height:96px}.profile-secondary-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-secondary-stat:last-child{grid-column:1/-1}}
+  @media(max-width:700px){html.account-page .container{padding-top:44px}.account-page-wrap.public-profile{width:min(100%,640px)}.profile-identity{gap:13px;padding-bottom:22px}.profile-identity .auth-avatar{width:56px;height:56px;border-radius:14px;font-size:1.05rem}.profile-feature-stats{grid-template-columns:1fr}.profile-feature-stat{min-height:96px}.profile-secondary-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-secondary-stat:last-child{grid-column:auto}}
   @media(max-width:430px){.profile-display-name{font-size:1.35rem}.profile-identity .profile-subtitle{display:none}}
 
   @media (max-width: 760px) {
@@ -1051,12 +1051,13 @@ const HTML_PAGE = `<!DOCTYPE html>
             <div class="profile-section-heading"><span class="profile-section-kicker">01</span><h3 id="profileStatisticsTitle">Statistics</h3></div>
             <div class="profile-feature-stats">
               <div class="profile-feature-stat profile-best-stat" id="bestRollStat"><span class="profile-stat-label">Best roll</span><strong class="profile-stat-value" id="overviewBestRoll">—</strong><span class="profile-stat-meta">Leaderboard</span></div>
-              <div class="profile-feature-stat"><span class="profile-stat-label">Total EP</span><strong class="profile-stat-value" id="overviewTotalEP">—</strong><span class="profile-stat-meta">Earned from all saved rolls</span></div>
+              <div class="profile-feature-stat"><span class="profile-stat-label">Total EP</span><strong class="profile-stat-value" id="overviewTotalEP">—</strong><span class="profile-stat-meta" id="overviewTotalEPRank">Earned from all saved rolls</span></div>
             </div>
             <div class="profile-secondary-stats">
               <div class="profile-secondary-stat"><span>Rolls</span><strong id="overviewRollCount">—</strong></div>
               <div class="profile-secondary-stat"><span>Account</span><strong id="overviewUsernameSecondary">—</strong></div>
               <div class="profile-secondary-stat"><span>Display name</span><strong id="overviewDisplayName">—</strong></div>
+              <div class="profile-secondary-stat"><span>Joined</span><strong id="overviewJoinDate">—</strong></div>
             </div>
           </section>
           <section class="profile-section profile-roll-history" id="recentRollsSection" aria-labelledby="rollHistoryTitle">
@@ -1360,6 +1361,10 @@ function renderPlayerOverview(summary, isCurrentUser) {
   var totalEP = Number(summary.totalEP != null ? summary.totalEP : (summary.totalEp != null ? summary.totalEp : 0)) || 0;
   var totalEPEl = document.getElementById("overviewTotalEP");
   if (totalEPEl) totalEPEl.textContent = totalEP.toLocaleString() + " EP";
+  var totalEPRankEl = document.getElementById("overviewTotalEPRank");
+  if (totalEPRankEl) totalEPRankEl.textContent = summary.totalEPRank != null ? "Rank #" + summary.totalEPRank + " · Total EP" : "Total EP earned from all saved rolls";
+  var joinDateEl = document.getElementById("overviewJoinDate");
+  if (joinDateEl) joinDateEl.textContent = summary.createdAt ? new Date(Number(summary.createdAt)).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—";
   var bestRollStat = document.getElementById("bestRollStat");
   if (bestRollStat && summary.bestRoll) {
     var bestTier = tierForEP(Number(summary.bestRoll.ep) || 0);
@@ -2703,7 +2708,7 @@ const MAX_LEADERBOARD = 20;
 const AUTH_COOKIE = "sixroll_auth";
 const AUTH_USERS_KEY = "auth_users";
 const AUTH_SESSIONS_KEY = "auth_sessions";
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 export default {
   async fetch(request, env) {
@@ -2734,7 +2739,7 @@ export default {
       users.push(user);
       await env.PLAYERS.put(AUTH_USERS_KEY, JSON.stringify(users));
       const sessionToken = createSessionToken(username);
-      await env.PLAYERS.put(`${AUTH_SESSIONS_KEY}:${sessionToken}`, JSON.stringify({ email: username, expiresAt: Date.now() + SESSION_TTL_SECONDS }));
+      await env.PLAYERS.put(`${AUTH_SESSIONS_KEY}:${sessionToken}`, JSON.stringify({ email: username, expiresAt: Date.now() + SESSION_TTL_SECONDS * 1000 }));
       const cookie = serializeCookie(AUTH_COOKIE, sessionToken, { httpOnly: true, secure: true, sameSite: "Lax", path: "/", maxAge: SESSION_TTL_SECONDS });
       return json({ ok: true }, 200, { "Set-Cookie": cookie });
     }
@@ -2755,14 +2760,18 @@ export default {
       const hash = await derivePasswordHash(password, user.salt);
       if (hash !== user.passwordHash) return json({ error: "Invalid credentials" }, 401);
       const sessionToken = createSessionToken(username);
-      await env.PLAYERS.put(`${AUTH_SESSIONS_KEY}:${sessionToken}`, JSON.stringify({ email: username, expiresAt: Date.now() + SESSION_TTL_SECONDS }));
+      await env.PLAYERS.put(`${AUTH_SESSIONS_KEY}:${sessionToken}`, JSON.stringify({ email: username, expiresAt: Date.now() + SESSION_TTL_SECONDS * 1000 }));
       const cookie = serializeCookie(AUTH_COOKIE, sessionToken, { httpOnly: true, secure: true, sameSite: "Lax", path: "/", maxAge: SESSION_TTL_SECONDS });
       return json({ ok: true }, 200, { "Set-Cookie": cookie });
     }
 
     if (url.pathname === "/api/auth/me" && request.method === "GET") {
-      const user = await getSessionUser(request, env);
-      return user ? json({ user }) : json({ error: "Not signed in" }, 401);
+      const session = await getSessionRecord(request, env);
+      if (!session || !session.user) return json({ error: "Not signed in" }, 401);
+      const refreshedExpiresAt = Date.now() + SESSION_TTL_SECONDS * 1000;
+      await env.PLAYERS.put(session.key, JSON.stringify({ email: session.email, expiresAt: refreshedExpiresAt }));
+      const cookie = serializeCookie(AUTH_COOKIE, session.token, { httpOnly: true, secure: true, sameSite: "Lax", path: "/", maxAge: SESSION_TTL_SECONDS });
+      return json({ user: session.user }, 200, { "Set-Cookie": cookie });
     }
 
     if (url.pathname === "/api/auth/profile" && request.method === "POST") {
@@ -2781,7 +2790,18 @@ export default {
         stored.name = name;
         await env.PLAYERS.put(AUTH_USERS_KEY, JSON.stringify(users));
       }
-      return json({ user: { email: user.email, name } });
+      const profileKey = PROFILE_PREFIX + String(user.username || user.email || "").trim().toLowerCase();
+      const existingProfileRaw = await env.PLAYERS.get(profileKey);
+      if (existingProfileRaw) {
+        try {
+          const existingProfile = JSON.parse(existingProfileRaw);
+          if (existingProfile && typeof existingProfile === "object") {
+            existingProfile.displayName = name || String(user.username || user.email || "");
+            await env.PLAYERS.put(profileKey, JSON.stringify(existingProfile));
+          }
+        } catch {}
+      }
+      return json({ user: { email: user.email, username: user.username, name, createdAt: stored ? stored.createdAt : user.createdAt } });
     }
 
     if (url.pathname === "/api/auth/logout" && request.method === "POST") {
@@ -2817,6 +2837,11 @@ export default {
         return json({
           username,
           displayName,
+          createdAt: stored ? Number(stored.createdAt) || null : null,
+          totalEPRank: 1 + (await Promise.all(users.map(async (entry) => {
+            const rawProfile = await env.PLAYERS.get(PROFILE_PREFIX + String(entry.username || entry.email || "").toLowerCase());
+            try { const p = rawProfile ? JSON.parse(rawProfile) : null; return Number(p && p.totalEP) || 0; } catch { return 0; }
+          }))).filter((v) => v > 0).length,
           rollCount: 0,
           totalEP: 0,
           bestRoll: null,
@@ -2826,6 +2851,20 @@ export default {
 
       const index = await getRollIndex(env);
       const leaderboard = Array.isArray(index.leaderboard) ? index.leaderboard : [];
+      // Total-EP rank is intentionally computed from per-player aggregates.
+      // This keeps the leaderboard index small while making profile ranks authoritative.
+      const profileTotals = await Promise.all(users.map(async (entry) => {
+        const entryUsername = String(entry.username || entry.email || "").trim();
+        if (!entryUsername) return null;
+        const rawProfile = await env.PLAYERS.get(PROFILE_PREFIX + entryUsername.toLowerCase());
+        if (!rawProfile) return { username: entryUsername, totalEP: 0 };
+        try {
+          const parsed = JSON.parse(rawProfile);
+          return { username: entryUsername, totalEP: Number(parsed && parsed.totalEP) || 0 };
+        } catch { return { username: entryUsername, totalEP: 0 }; }
+      }));
+      const myTotalEP = Number(profile.totalEP) || 0;
+      const totalEPRank = 1 + profileTotals.filter((entry) => entry && entry.username.toLowerCase() !== String(username).toLowerCase() && entry.totalEP > myTotalEP).length;
       const best = profile.bestRoll || null;
       let bestRank = null;
       if (best) {
@@ -2841,6 +2880,8 @@ export default {
       return json({
         username: profile.username || username,
         displayName: profile.displayName || displayName,
+        createdAt: stored ? Number(stored.createdAt) || null : null,
+        totalEPRank,
         rollCount: Number(profile.rollCount) || 0,
         totalEP: Number(profile.totalEP) || 0,
         bestRoll: best ? { word: best.word, ep: best.ep, ts: best.ts, rank: bestRank } : null,
@@ -3114,25 +3155,36 @@ async function derivePasswordHash(password, saltBase64) {
   return uint8ArrayToBase64(new Uint8Array(bits));
 }
 
-async function getSessionUser(request, env) {
+async function getSessionRecord(request, env) {
   const cookieHeader = request.headers.get("Cookie") || "";
   const match = cookieHeader.match(new RegExp(`(?:^|; )${AUTH_COOKIE}=([^;]+)`));
   if (!match) return null;
   const token = decodeURIComponent(match[1]);
-  const raw = await env.PLAYERS.get(`${AUTH_SESSIONS_KEY}:${token}`);
+  const key = `${AUTH_SESSIONS_KEY}:${token}`;
+  const raw = await env.PLAYERS.get(key);
   if (!raw) return null;
   try {
     const payload = JSON.parse(raw);
     if (payload.expiresAt <= Date.now()) {
-      await env.PLAYERS.delete(`${AUTH_SESSIONS_KEY}:${token}`);
+      await env.PLAYERS.delete(key);
       return null;
     }
     const users = await getAuthUsers(env);
     const user = users.find((entry) => entry.email === payload.email || entry.username === payload.email);
-    return user ? { email: user.email || user.username, username: user.username || user.email, name: user.name || "" } : { email: payload.email, username: payload.email, name: "" };
+    return {
+      key,
+      token,
+      email: payload.email,
+      user: user ? { email: user.email || user.username, username: user.username || user.email, name: user.name || "", createdAt: user.createdAt || null } : { email: payload.email, username: payload.email, name: "", createdAt: null }
+    };
   } catch {
     return null;
   }
+}
+
+async function getSessionUser(request, env) {
+  const session = await getSessionRecord(request, env);
+  return session ? session.user : null;
 }
 
 function createSessionToken(email) {
