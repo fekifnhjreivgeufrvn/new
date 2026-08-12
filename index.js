@@ -472,8 +472,9 @@ const HTML_PAGE = `<!DOCTYPE html>
   /* ---------- badge detail page ---------- */
   html.badge-detail-page .hero-card, html.badge-detail-page .result-card, html.badge-detail-page .leaderboard, html.badge-detail-page .detail-card, html.badge-detail-page .admin-panel, html.badge-detail-page .account-page-wrap { display:none; }
   html.badge-detail-page .container { max-width:680px; padding-top:64px; }
-  .badge-detail-page { display:grid; gap:18px; }
-  .badge-detail-back { border:1px solid var(--border); background:var(--surface); color:var(--text-2); border-radius:8px; padding:7px 11px; cursor:pointer; font:600 .78rem inherit; width:max-content; }
+  .badge-detail-page { display:none; gap:18px; }
+html.badge-detail-page .badge-detail-page { display:grid; }
+  .badge-detail-back { border:1px solid var(--border); background:var(--surface); color:var(--text-2); border-radius:8px; padding:7px 11px; cursor:pointer; font:600 .78rem inherit; width:max-content; margin:0 0 2px; }
   .badge-detail-back:hover { color:var(--text); border-color:var(--border-strong); }
   .badge-detail-card { position:relative; overflow:hidden; border:1px solid var(--border); border-left:4px solid var(--badge-color); background:color-mix(in srgb,var(--badge-color) 8%,var(--surface)); padding:22px; border-radius:10px; box-shadow:0 0 26px -13px var(--badge-color); }
   .badge-detail-card.rarity-legendary, .badge-detail-card.rarity-mythic, .badge-detail-card.rarity-divine, .badge-detail-card.rarity-cosmic { background:linear-gradient(110deg,color-mix(in srgb,var(--badge-color) 22%,var(--surface)),color-mix(in srgb,var(--badge-color) 6%,var(--surface)),color-mix(in srgb,var(--badge-color) 18%,var(--surface))); background-size:180% 100%; animation:badgeGradient 2.4s ease-in-out infinite; }
@@ -1129,7 +1130,6 @@ const HTML_PAGE = `<!DOCTYPE html>
           </section>
         </section>
       </div>
-      <a href="/" class="account-back-link">← Back to the game</a>
     </section>
 
     <section class="result-card" id="result">
@@ -2286,11 +2286,14 @@ async function renderResult(letters, res, leaderboard) {
     li.dataset.badgeFamily = b.family || "badge";
     li.dataset.badgeEp = String(b.ep);
     li.dataset.badgeDesc = b.desc || "";
-    var openBadge = function () {
-      window.location.href = "/badge/" + encodeURIComponent(b.name) + "?ep=" + encodeURIComponent(b.ep) + "&family=" + encodeURIComponent(b.family || "badge") + "&desc=" + encodeURIComponent(b.desc || "");
-    };
-    li.addEventListener("click", openBadge);
-    li.addEventListener("keydown", function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openBadge(); } });
+    (function (badgeForLink) {
+      var openBadge = function () {
+        var detailDescription = badgeForLink.desc || "A special pattern discovered in a roll.";
+        window.location.href = "/badge/" + encodeURIComponent(badgeForLink.name) + "?ep=" + encodeURIComponent(badgeForLink.ep) + "&family=" + encodeURIComponent(badgeForLink.family || "badge") + "&desc=" + encodeURIComponent(detailDescription);
+      };
+      li.addEventListener("click", openBadge);
+      li.addEventListener("keydown", function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openBadge(); } });
+    })(b);
     list.insertBefore(li, list.firstChild);
     runningEP += b.ep;
     // Recolor the running total (and its glow) to match the rarity tier of the EP accumulated
@@ -2538,10 +2541,6 @@ function showRollDetail(word, player, ep) {
   detail.classList.add("show");
 }
 
-document.getElementById("detailBack").addEventListener("click", function () {
-  window.location.href = "/#leaderboard";
-});
-
 function initializeBadgeDetailPage() {
   var path = window.location.pathname;
   if (path.indexOf("/badge/") !== 0) return false;
@@ -2550,7 +2549,7 @@ function initializeBadgeDetailPage() {
   var params = new URLSearchParams(window.location.search);
   var ep = Number(params.get("ep")) || 0;
   var family = params.get("family") || "badge";
-  var desc = params.get("desc") || "A special pattern badge discovered in a roll.";
+  var desc = params.get("desc") || (name + " is a " + family + " pattern badge discovered in this roll.");
   var tier = tierForEP(ep);
   var color = colorForEP(ep);
   document.getElementById("badgeDetailPage").hidden = false;
