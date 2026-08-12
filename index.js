@@ -1524,6 +1524,7 @@ function renderPlayerOverview(summary, isCurrentUser) {
   var displayName = document.getElementById("overviewDisplayName");
   var editBtn = document.getElementById("editDisplayNameBtn");
   var signOutBtn = document.getElementById("profileSignOutBtn");
+  var editor = document.getElementById("profileInlineEditor");
   var bestRoll = document.getElementById("overviewBestRoll");
   var rollCount = document.getElementById("overviewRollCount");
   var recentRolls = document.getElementById("recentRolls");
@@ -1534,6 +1535,8 @@ function renderPlayerOverview(summary, isCurrentUser) {
   if (displayName) displayName.textContent = summary.displayName || "—";
   if (editBtn) editBtn.hidden = !isCurrentUser;
   if (signOutBtn) signOutBtn.hidden = !isCurrentUser;
+  if (editor) editor.hidden = !isCurrentUser;
+  if (title && !isCurrentUser) title.hidden = false;
   if (bestRoll) {
     if (summary.bestRoll) {
       bestRoll.innerHTML = '<span class="profile-best-word">' + escapeHtml(summary.bestRoll.word) + '</span> <span class="profile-best-ep">' + Number(summary.bestRoll.ep || 0).toLocaleString() + ' EP</span>';
@@ -1671,6 +1674,7 @@ async function initializeAccountOverview(explicitName) {
 
   if (editBtn) editBtn.addEventListener("click", function () {
     if (!editor || !input || !title) return;
+    if (!authState.user || !window.location.pathname.startsWith("/account")) return;
     input.value = authState.user && authState.user.name ? authState.user.name : (title.textContent || "");
     title.hidden = true;
     editor.hidden = false;
