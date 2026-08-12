@@ -134,25 +134,6 @@ const HTML_PAGE = `<!DOCTYPE html>
   /* ---------- layout ---------- */
   .container { max-width: 420px; margin: 0 auto; padding: 108px 18px 70px; }
 
-  /* ---------- SPA route transitions ---------- */
-  /* The whole page is a single-page app: navigating between Roll / Leaderboard /
-     Account / detail views swaps which section is visible without a hard reload.
-     These classes crossfade the swap so it reads as a smooth app transition
-     instead of a browser page-load flash. */
-  .container { transition: opacity .22s cubic-bezier(.4,0,.2,1), transform .22s cubic-bezier(.4,0,.2,1); }
-  .container.route-leaving { opacity: 0; transform: translateY(7px) scale(.99); pointer-events: none; }
-  .container.route-entering { opacity: 0; transform: translateY(-7px) scale(.99); }
-  @media (prefers-reduced-motion: reduce) {
-    .container, .container.route-leaving, .container.route-entering { transition: none; transform: none; }
-  }
-
-  .header-link { position: relative; padding-bottom: 3px; }
-  .header-link::after {
-    content: ""; position: absolute; left: 0; right: 100%; bottom: -1px; height: 2px;
-    background: var(--accent); border-radius: 2px; transition: right .25s cubic-bezier(.2,.8,.2,1);
-  }
-  .header-link.current::after { right: 0; }
-
   .hero-card {
     background: transparent; border: 0; border-radius: 0;
     padding: 0; position: relative; overflow: visible;
@@ -1518,38 +1499,7 @@ function renderPlayerOverview(summary, isCurrentUser) {
   overview.hidden = false;
 }
 
-var publicProfileRefreshTimer = 0;
-var publicProfileRefreshBusy = false;
-
-function stopPublicProfileRefresh() {
-  if (publicProfileRefreshTimer) {
-    clearInterval(publicProfileRefreshTimer);
-    publicProfileRefreshTimer = 0;
-  }
-}
-
-function startPublicProfileRefresh(playerName) {
-  stopPublicProfileRefresh();
-  if (!playerName) return;
-  // Public profiles are the one place where another player's changes can
-  // happen without any interaction in this tab. Refresh periodically, but
-  // only while the public profile is actually open and visible.
-  publicProfileRefreshTimer = setInterval(function () {
-    if (document.hidden || publicProfileRefreshBusy || !window.location.pathname.startsWith("/account/")) return;
-    publicProfileRefreshBusy = true;
-    fetch("/api/player/" + encodeURIComponent(playerName) + "?t=" + Date.now(), { cache: "no-store" })
-      .then(function (response) {
-        if (!response.ok) throw new Error("Profile refresh failed");
-        return response.json();
-      })
-      .then(function (summary) { renderPlayerOverview(summary, false); })
-      .catch(function () {})
-      .finally(function () { publicProfileRefreshBusy = false; });
-  }, 15000);
-}
-
 async function initializeAccountOverview(explicitName) {
-  stopPublicProfileRefresh();
   var pathName = explicitName || getAccountPathName();
   var isSelf = !pathName;
   var playerName = pathName || (authState.user ? authState.user.email || authState.user.name || "" : "");
@@ -1614,7 +1564,6 @@ async function initializeAccountOverview(explicitName) {
     if (!response.ok) throw new Error("Player not found");
     var summary = await response.json();
     renderPlayerOverview(summary, isSelf && signedIn);
-    if (pathName && !isSelf) startPublicProfileRefresh(playerName);
   } catch (e) {
     if (overviewEl) overviewEl.hidden = true;
     setAuthStatus("Unable to load player overview.", "error");
@@ -2366,7 +2315,7 @@ async function renderResult(letters, res, leaderboard) {
     (function (badgeForLink) {
       var openBadge = function () {
         var detailDescription = badgeForLink.desc || "A special pattern discovered in a roll.";
-        navigate("/badge/" + encodeURIComponent(badgeForLink.name) + "?ep=" + encodeURIComponent(badgeForLink.ep) + "&family=" + encodeURIComponent(badgeForLink.family || "badge") + "&desc=" + encodeURIComponent(detailDescription));
+        window.location.href = "/badge/" + encodeURIComponent(badgeForLink.name) + "?ep=" + encodeURIComponent(badgeForLink.ep) + "&family=" + encodeURIComponent(badgeForLink.family || "badge") + "&desc=" + encodeURIComponent(detailDescription);
       };
       li.addEventListener("click", openBadge);
       li.addEventListener("keydown", function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openBadge(); } });
@@ -2423,7 +2372,7 @@ async function renderResult(letters, res, leaderboard) {
       gbtn.textContent = "Go to leaderboard";
       gbtn.onclick = function () {
         try { localStorage.setItem("sixroll_pulse", getName()); } catch (e) {}
-        navigate("/leaderboard");
+        window.location.href = "/leaderboard";
       };
       var supEl = document.getElementById("supporting");
       if (supEl && supEl.parentNode) supEl.parentNode.insertBefore(gbtn, supEl);
@@ -2435,33 +2384,19 @@ async function renderResult(letters, res, leaderboard) {
 var LB = {
   load: async function () {
     var cacheKey = "sixroll_leaderboard_cache";
-    var now = Date.now();
-    try {
-      var cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
-      if (cached && Array.isArray(cached.data) && now - Number(cached.ts || 0) < 5000) {
-        // Refresh in the background so the UI stays instant without making
-        // the board meaningfully stale.
-        fetch("/api/leaderboard", { cache: "no-store" }).then(function (fresh) {
-          if (!fresh.ok) return null;
-          return fresh.json();
-        }).then(function (data) {
-          if (Array.isArray(data)) {
-            localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: data }));
-            leaderboardCache = data;
-            renderLeaderboard(leaderboardCache);
-          }
-        }).catch(function () {});
-        return cached.data;
-      }
-    } catch (e) {}
-
-    var res = await fetch("/api/leaderboard", { cache: "no-store" });
+    // Always ask the server for the authoritative board when this screen is
+    // opened. A local cache may be used elsewhere for instant UI, but it must
+    // never prevent a leaderboard page reload from seeing a newly qualified roll.
+    var res = await fetch("/api/leaderboard?_=" + Date.now(), {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" }
+    });
     if (!res.ok) throw new Error("Failed to load leaderboard");
     var data = await res.json();
     try {
       localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: data }));
     } catch (e) {}
-    return data;
+    return Array.isArray(data) ? data : [];
   },
   submit: async function (name, word, ep, email) {
     var response = await fetch("/api/roll", {
@@ -2524,12 +2459,12 @@ function renderLeaderboard(data) {
   }).join("");
   body.querySelectorAll(".lb-word-btn").forEach(function (button) {
     button.addEventListener("click", function () {
-      navigate("/roll/" + encodeURIComponent(button.dataset.word) + "?name=" + encodeURIComponent(button.dataset.player) + "&ep=" + encodeURIComponent(button.dataset.ep));
+      window.location.href = "/roll/" + encodeURIComponent(button.dataset.word) + "?name=" + encodeURIComponent(button.dataset.player) + "&ep=" + encodeURIComponent(button.dataset.ep);
     });
   });
   body.querySelectorAll(".lb-name-btn").forEach(function (button) {
     button.addEventListener("click", function () {
-      navigate("/account/" + encodeURIComponent(button.dataset.player));
+      window.location.href = "/account/" + encodeURIComponent(button.dataset.player);
     });
   });
 
@@ -2610,7 +2545,7 @@ function showRollDetail(word, player, ep) {
     item.innerHTML = "<div><span class='badge-name'><span class='badge-icon' aria-hidden='true'>" + (BADGE_ICONS[badge.family] || "✨") + "</span>" + badge.name + "</span><span class='badge-desc'>" + badge.desc + "</span>" + slots + "</div><span class='badge-ep'>+" + badge.ep + " EP</span>";
     item.tabIndex = 0;
     item.setAttribute("role", "button");
-    var openBadge = function () { navigate("/badge/" + encodeURIComponent(badge.name) + "?ep=" + encodeURIComponent(badge.ep) + "&family=" + encodeURIComponent(badge.family || "badge") + "&desc=" + encodeURIComponent(badge.desc || "")); };
+    var openBadge = function () { window.location.href = "/badge/" + encodeURIComponent(badge.name) + "?ep=" + encodeURIComponent(badge.ep) + "&family=" + encodeURIComponent(badge.family || "badge") + "&desc=" + encodeURIComponent(badge.desc || ""); };
     item.addEventListener("click", openBadge);
     item.addEventListener("keydown", function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openBadge(); } });
     list.appendChild(item);
@@ -2820,10 +2755,16 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
   if (authState.user) {
     try {
       var saved = await LB.submit(name, letters.join(""), res.totalEP, authState.user.email);
-      // Every signed-in roll is now saved to the player's profile. Only add it
-      // to the client leaderboard cache when the server confirms it entered top 20.
-      if (saved && saved.leaderboard) {
-        addRollToLeaderboardCache({ name: name, word: letters.join(""), ep: res.totalEP, ts: Date.now() });
+      // The server is authoritative. Replace the client cache with its actual
+      // top-20 index instead of trying to reconstruct the board locally. This
+      // also handles ties, evictions, and concurrent rolls correctly.
+      if (saved && Array.isArray(saved.leaderboardData)) {
+        leaderboardCache = saved.leaderboardData.slice();
+        leaderboardCache.sort(function (a, b) { return (Number(b.ep) || 0) - (Number(a.ep) || 0); });
+        try { localStorage.removeItem("sixroll_leaderboard_cache"); } catch (e) {}
+        if (window.location.pathname === "/leaderboard") {
+          renderLeaderboard(leaderboardCache);
+        }
       }
       if (window.location.pathname === "/account" || window.location.pathname.startsWith("/account/")) {
         initializeAccountOverview().catch(function () {});
@@ -2945,123 +2886,9 @@ document.addEventListener("click", function (event) {
   }
 });
 
-/* ================= client-side routing (SPA) =================
- * The worker serves the exact same HTML shell for "/", "/leaderboard",
- * "/account", "/account/:name", "/roll/:word" and "/badge/:name" — the
- * client picks which section to show based on the URL. That means once the
- * page is loaded we never need a real browser navigation to move between
- * these views: we can swap sections in place and crossfade the change so it
- * feels like an app rather than a stack of separate web pages. */
-var ROUTE_CLASSES = ["leaderboard-page", "account-page", "detail-page", "badge-detail-route"];
-var navBusy = false;
-// Only /leaderboard, /account(/:name) and /roll/:word set document.title themselves;
-// the Roll (home) route relies on the title the page loaded with, so remember it here
-// and restore it before each route swap in case a previous route changed it.
-var DEFAULT_TITLE = document.title;
-
-function clearRouteState() {
-  ROUTE_CLASSES.forEach(function (cls) { document.documentElement.classList.remove(cls); });
-  var detail = document.getElementById("rollDetail");
-  if (detail) detail.classList.remove("show");
-  var badgePage = document.getElementById("badgeDetailPage");
-  if (badgePage) badgePage.hidden = true;
-  document.title = DEFAULT_TITLE;
-}
-
-function updateNavHighlight() {
-  var path = window.location.pathname;
-  document.querySelectorAll(".header-link").forEach(function (link) {
-    var href = link.getAttribute("href");
-    var isCurrent = href === path ||
-      (href === "/account" && path.indexOf("/account") === 0) ||
-      (href === "/leaderboard" && (path === "/leaderboard" || path.indexOf("/roll/") === 0));
-    link.classList.toggle("current", isCurrent);
-  });
-}
-
-// Re-runs the same "which view am I on" logic the initial page load uses,
-// but against whatever the URL is right now — this is what lets a nav click
-// or a browser back/forward re-render in place instead of reloading.
-function applyRoute() {
-  clearRouteState();
-  updateAuthUI();
-  if (initializeBadgeDetailPage()) {
-    updateNavHighlight();
-    return Promise.resolve();
-  }
-  return initializeDetailPage().then(function (isDetailPage) {
-    var accountWork = Promise.resolve();
-    if (window.location.pathname.startsWith("/account")) {
-      var explicitName = getAccountPathName();
-      if (authState.user || explicitName) {
-        accountWork = initializeAccountOverview(explicitName).catch(function () {});
-      } else {
-        var overviewEl = document.getElementById("accountOverview");
-        if (overviewEl) overviewEl.hidden = true;
-      }
-    }
-    return accountWork.then(function () {
-      updateNavHighlight();
-      if (!isDetailPage) return loadLeaderboard();
-    });
-  });
-}
-
-// Fades the current view out, swaps the route in place while it's invisible
-// (so any layout shift between views is never seen), then fades the new
-// view in. opts.isPop is set for browser back/forward, where the URL has
-// already changed and we must not push a second history entry.
-function navigate(path, opts) {
-  opts = opts || {};
-  var current = window.location.pathname + window.location.search;
-  if (!opts.isPop && path === current) return;
-  if (navBusy) return;
-  navBusy = true;
-  var main = document.querySelector("main.container");
-  if (main) main.classList.add("route-leaving");
-  setTimeout(function () {
-    if (!opts.isPop) window.history.pushState({}, "", path);
-    window.scrollTo(0, 0);
-    applyRoute().catch(function () {}).then(function () {
-      if (main) {
-        main.classList.remove("route-leaving");
-        main.classList.add("route-entering");
-        void main.offsetWidth; // force a reflow so the entering state paints before we transition out of it
-        requestAnimationFrame(function () {
-          main.classList.remove("route-entering");
-        });
-      }
-      setTimeout(function () { navBusy = false; }, 240);
-    });
-  }, 180);
-}
-
-window.addEventListener("popstate", function () {
-  navigate(window.location.pathname + window.location.search, { isPop: true });
-});
-
-// The three header links (Leaderboard / Roll / Account) are the only plain
-// <a> navigation in the app; intercept them so they go through the SPA
-// router instead of doing a full page load.
-document.addEventListener("click", function (event) {
-  var link = event.target && event.target.closest(".header-link");
-  if (!link) return;
-  event.preventDefault();
-  navigate(link.getAttribute("href"));
-});
-
-var detailBackBtn = document.getElementById("detailBack");
-if (detailBackBtn) {
-  detailBackBtn.addEventListener("click", function () { navigate("/leaderboard"); });
-}
-
 refreshAuthState().then(function () {
-  if (initializeBadgeDetailPage()) {
-    updateNavHighlight();
-    return;
-  }
+  if (initializeBadgeDetailPage()) return;
   initializeDetailPage().then(function (isDetailPage) {
-    updateNavHighlight();
     if (!isDetailPage) loadLeaderboard();
   });
 });
@@ -3182,7 +3009,9 @@ export default {
 
     if (url.pathname === "/api/leaderboard" && request.method === "GET") {
       const index = await getRollIndex(env);
-      return json(index.leaderboard || []);
+      return json(index.leaderboard || [], 200, {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"
+      });
     }
 
     if (url.pathname.startsWith("/api/player/") && request.method === "GET") {
@@ -3344,11 +3173,14 @@ export default {
         savedToLeaderboard = top.some((roll) => roll.word === word && roll.name === name && Number(roll.ep) === ep && Number(roll.ts) === ts);
       }
 
-      return json({ ok: true, saved: true, leaderboard: savedToLeaderboard, profile: {
-        rollCount: profile.rollCount,
-        totalEP: profile.totalEP,
-        bestRoll: profile.bestRoll
-      }});
+      const latestIndex = await getRollIndex(env);
+      return json({ ok: true, saved: true, leaderboard: savedToLeaderboard,
+        leaderboardData: latestIndex.leaderboard || [],
+        profile: {
+          rollCount: profile.rollCount,
+          totalEP: profile.totalEP,
+          bestRoll: profile.bestRoll
+        }});
     }
 
     if (url.pathname === "/api/reset" && request.method === "POST") {
