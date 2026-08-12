@@ -1499,7 +1499,38 @@ function renderPlayerOverview(summary, isCurrentUser) {
   overview.hidden = false;
 }
 
+var publicProfileRefreshTimer = 0;
+var publicProfileRefreshBusy = false;
+
+function stopPublicProfileRefresh() {
+  if (publicProfileRefreshTimer) {
+    clearInterval(publicProfileRefreshTimer);
+    publicProfileRefreshTimer = 0;
+  }
+}
+
+function startPublicProfileRefresh(playerName) {
+  stopPublicProfileRefresh();
+  if (!playerName) return;
+  // Public profiles are the one place where another player's changes can
+  // happen without any interaction in this tab. Refresh periodically, but
+  // only while the public profile is actually open and visible.
+  publicProfileRefreshTimer = setInterval(function () {
+    if (document.hidden || publicProfileRefreshBusy || !window.location.pathname.startsWith("/account/")) return;
+    publicProfileRefreshBusy = true;
+    fetch("/api/player/" + encodeURIComponent(playerName) + "?t=" + Date.now(), { cache: "no-store" })
+      .then(function (response) {
+        if (!response.ok) throw new Error("Profile refresh failed");
+        return response.json();
+      })
+      .then(function (summary) { renderPlayerOverview(summary, false); })
+      .catch(function () {})
+      .finally(function () { publicProfileRefreshBusy = false; });
+  }, 15000);
+}
+
 async function initializeAccountOverview(explicitName) {
+  stopPublicProfileRefresh();
   var pathName = explicitName || getAccountPathName();
   var isSelf = !pathName;
   var playerName = pathName || (authState.user ? authState.user.email || authState.user.name || "" : "");
@@ -1564,6 +1595,7 @@ async function initializeAccountOverview(explicitName) {
     if (!response.ok) throw new Error("Player not found");
     var summary = await response.json();
     renderPlayerOverview(summary, isSelf && signedIn);
+    if (pathName && !isSelf) startPublicProfileRefresh(playerName);
   } catch (e) {
     if (overviewEl) overviewEl.hidden = true;
     setAuthStatus("Unable to load player overview.", "error");
