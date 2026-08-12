@@ -1005,6 +1005,40 @@ html.badge-detail-page .badge-detail-page { display:grid; }
   @media (max-width: 680px) {
     .account-grid { grid-template-columns: 1fr; }
   }
+
+  /* Badge detail theme hardening */
+  .badge-detail-screen,
+  .badge-detail-page,
+  .badge-detail-card,
+  .badge-detail-panel {
+    color: var(--text, #f5f5f5);
+    background: var(--bg, #0b0d10);
+  }
+  .badge-detail-screen {
+    min-height: 100%;
+  }
+  .badge-detail-card,
+  .badge-detail-panel {
+    border-color: var(--border, rgba(255,255,255,.12));
+    box-shadow: 0 18px 50px rgba(0,0,0,.28);
+  }
+  .badge-detail-screen a,
+  .badge-detail-screen button {
+    color: inherit;
+  }
+
+
+  html.badge-detail-mode,
+  html.badge-detail-mode body,
+  body.badge-detail-mode {
+    background: var(--bg, #0b0d10) !important;
+    color: var(--text, #f5f5f5) !important;
+  }
+  html.badge-detail-mode .badge-detail-screen {
+    background: transparent !important;
+    color: inherit !important;
+  }
+
 </style>
 </head>
 <body>
