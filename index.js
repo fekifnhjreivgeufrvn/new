@@ -386,29 +386,106 @@ const HTML_PAGE = `<!DOCTYPE html>
   }
   @keyframes tagShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-  /* ---------- tier identity ----------
-     Every rarity pill (hero roll, leaderboard, detail page) shares this system so a tier
-     reads as a distinct "material" at a glance, not just recolored text in a pill outline. */
-  .roll-rarity .tier-label { position: relative; z-index: 1; }
-  .roll-rarity.rarity-trash, .roll-rarity.rarity-common { box-shadow: none; }
-  .roll-rarity.rarity-uncommon { box-shadow: 0 0 10px -5px currentColor; }
-  .roll-rarity.rarity-rare { box-shadow: 0 0 13px -5px currentColor; }
+  /* ---------- tier identity with enhanced visuals ----------
+     Every rarity pill has unique visual identity with icons, glows, gradients, and particles. */
+  .roll-rarity { position: relative; overflow: hidden; }
+  .roll-rarity .tier-label { position: relative; z-index: 2; display: flex; align-items: center; gap: 5px; }
+  .rarity-icon { display: inline-block; font-weight: 900; font-size: 0.95em; letter-spacing: 0.05em; opacity: 0.95; }
+  
+  /* Base tiers - minimal glow */
+  .roll-rarity.rarity-trash { box-shadow: none; background: transparent; }
+  .roll-rarity.rarity-common { box-shadow: 0 0 4px -2px currentColor; }
+  
+  /* Uncommon - soft glow */
+  .roll-rarity.rarity-uncommon {
+    box-shadow: 0 0 12px -4px currentColor, inset 0 0 8px -6px currentColor;
+    background-image: radial-gradient(circle at 30% 50%, color-mix(in srgb, currentColor 8%, transparent) 0%, transparent 50%);
+  }
+  
+  /* Rare - enhanced glow with movement */
+  .roll-rarity.rarity-rare {
+    box-shadow: 0 0 16px -2px currentColor, 0 0 28px -8px currentColor, inset 0 0 12px -8px currentColor;
+    animation: rareGlow 2.2s ease-in-out infinite;
+    background-image: linear-gradient(135deg, color-mix(in srgb, currentColor 6%, transparent) 0%, transparent 60%);
+  }
+  
+  /* Epic - dynamic glow with particle hints */
   .roll-rarity.rarity-epic {
-    box-shadow: 0 0 16px -4px currentColor;
-    animation: tierPulse 2.6s ease-in-out infinite;
+    box-shadow: 0 0 20px -1px currentColor, 0 0 40px -8px currentColor, inset 0 0 16px -10px currentColor;
+    animation: epicPulse 1.8s cubic-bezier(.4, .0, .2, 1) infinite, epicGradientShift 3.5s ease-in-out infinite;
+    background-image: linear-gradient(120deg, color-mix(in srgb, currentColor 12%, transparent) 0%, color-mix(in srgb, currentColor 4%, transparent) 50%, color-mix(in srgb, currentColor 12%, transparent) 100%);
+    background-size: 200% 100%;
+    filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 20%, transparent));
   }
+  .roll-rarity.rarity-epic::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at var(--particle-x, 50%) var(--particle-y, 50%), color-mix(in srgb, currentColor 25%, transparent) 0%, transparent 70%);
+    animation: particleFloat 4s ease-in-out infinite;
+  }
+  
+  /* Legendary - shimmering multi-layer glow */
   .roll-rarity.rarity-legendary {
-    box-shadow: 0 0 20px -3px currentColor;
-    background-image: linear-gradient(120deg, color-mix(in srgb, currentColor 14%, transparent) 0%, color-mix(in srgb, currentColor 34%, transparent) 50%, color-mix(in srgb, currentColor 14%, transparent) 100%);
+    box-shadow: 0 0 24px 0px currentColor, 0 0 48px -6px currentColor, 0 0 72px -12px currentColor, inset 0 0 20px -12px currentColor;
+    animation: legendaryPulse 1.4s cubic-bezier(.34, 1.56, .64, 1) infinite, legendaryShimmer 2.2s ease-in-out infinite, legendaryRotate 6s linear infinite;
+    background-image: linear-gradient(120deg, color-mix(in srgb, currentColor 16%, transparent) 0%, color-mix(in srgb, currentColor 40%, transparent) 50%, color-mix(in srgb, currentColor 16%, transparent) 100%);
     background-size: 220% 100%;
-    animation: tierPulse 2s ease-in-out infinite, tierShimmer 2.6s linear infinite;
+    filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 30%, transparent)) brightness(1.1);
   }
+  .roll-rarity.rarity-legendary::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 999px;
+    pointer-events: none;
+    background: conic-gradient(from 0deg, transparent, color-mix(in srgb, currentColor 25%, transparent), transparent);
+    animation: coronalRotate 3s linear infinite;
+    z-index: -1;
+  }
+  
+  /* Mythic - intense multi-layer effect */
   .roll-rarity.rarity-mythic, .roll-rarity.rarity-divine, .roll-rarity.rarity-cosmic {
-    box-shadow: 0 0 24px -2px currentColor;
-    background-image: linear-gradient(120deg, color-mix(in srgb, currentColor 18%, transparent) 0%, color-mix(in srgb, currentColor 44%, transparent) 50%, color-mix(in srgb, currentColor 18%, transparent) 100%);
-    background-size: 220% 100%;
-    animation: tierPulse 1.3s ease-in-out infinite, tierShimmer 1.7s linear infinite;
+    box-shadow: 0 0 28px 2px currentColor, 0 0 56px -4px currentColor, 0 0 88px -10px currentColor, inset 0 0 24px -14px currentColor;
+    animation: mythicPulse 1s cubic-bezier(.34, 1.56, .64, 1) infinite, mythicShimmer 1.6s ease-in-out infinite, mythicRotate 4s linear infinite;
+    background-image: linear-gradient(120deg, color-mix(in srgb, currentColor 22%, transparent) 0%, color-mix(in srgb, currentColor 50%, transparent) 50%, color-mix(in srgb, currentColor 22%, transparent) 100%);
+    background-size: 200% 100%;
+    filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 40%, transparent)) drop-shadow(0 0 12px color-mix(in srgb, currentColor 20%, transparent)) brightness(1.2) saturate(1.3);
   }
+  .roll-rarity.rarity-mythic::before, .roll-rarity.rarity-divine::before, .roll-rarity.rarity-cosmic::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 40% 30% at 50% 30%, color-mix(in srgb, currentColor 30%, transparent) 0%, transparent 70%);
+    animation: mythicParticle 3s ease-in-out infinite;
+    z-index: 0;
+  }
+  .roll-rarity.rarity-mythic::after, .roll-rarity.rarity-divine::after, .roll-rarity.rarity-cosmic::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 999px;
+    pointer-events: none;
+    background: conic-gradient(from 0deg, color-mix(in srgb, currentColor 30%, transparent), transparent, color-mix(in srgb, currentColor 20%, transparent));
+    animation: coronalRotate 2s linear infinite;
+    z-index: -1;
+  }
+  
+  /* Animation sequences */
+  @keyframes rareGlow { 0%, 100% { box-shadow: 0 0 16px -2px currentColor, 0 0 28px -8px currentColor, inset 0 0 12px -8px currentColor; } 50% { box-shadow: 0 0 22px 0px currentColor, 0 0 40px -6px currentColor, inset 0 0 16px -10px currentColor; } }
+  @keyframes epicPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 20%, transparent)) brightness(1); } 50% { transform: scale(1.02); filter: drop-shadow(0 0 8px color-mix(in srgb, currentColor 35%, transparent)) brightness(1.15); } }
+  @keyframes epicGradientShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  @keyframes particleFloat { 0% { --particle-x: 20%; --particle-y: 30%; opacity: 0.4; } 50% { --particle-x: 80%; --particle-y: 70%; opacity: 0.7; } 100% { --particle-x: 20%; --particle-y: 30%; opacity: 0.4; } }
+  @keyframes legendaryPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 30%, transparent)) brightness(1.1); } 50% { transform: scale(1.03); filter: drop-shadow(0 0 12px color-mix(in srgb, currentColor 50%, transparent)) brightness(1.25); } }
+  @keyframes legendaryShimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  @keyframes legendaryRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes mythicPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 40%, transparent)) drop-shadow(0 0 12px color-mix(in srgb, currentColor 20%, transparent)) brightness(1.2) saturate(1.3); } 50% { transform: scale(1.04); filter: drop-shadow(0 0 16px color-mix(in srgb, currentColor 60%, transparent)) drop-shadow(0 0 28px color-mix(in srgb, currentColor 35%, transparent)) brightness(1.4) saturate(1.5); } }
+  @keyframes mythicShimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  @keyframes mythicRotate { from { transform: rotate(0deg) scale(1); } to { transform: rotate(360deg) scale(1); } }
+  @keyframes mythicParticle { 0% { transform: translateY(0) scale(0.8); opacity: 0.3; } 50% { transform: translateY(-4px) scale(1); opacity: 0.6; } 100% { transform: translateY(0) scale(0.8); opacity: 0.3; } }
+  @keyframes coronalRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @keyframes tierPulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.22); } }
   @keyframes tierShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
   /* compact version for tight spaces like leaderboard rows */
@@ -1380,6 +1457,14 @@ var RARITY_COLORS = {
   common: "#a1a1aa", uncommon: "#22c55e", rare: "#3b82f6",
   epic: "#a855f7", legendary: "#f59e0b", mythic: "#f43f5e"
 };
+var RARITY_ICONS = {
+  "Trash": "●", "Common": "◐", "Uncommon": "◆", "Rare": "★",
+  "Epic": "✦", "Legendary": "◈", "Mythic": "✸", "Divine": "❖", "Cosmic": "⬢"
+};
+
+function getRarityIcon(tier) {
+  return RARITY_ICONS[tier] || "●";
+}
 
 /* ================= theme ================= */
 function getTheme() { return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"; }
@@ -1613,8 +1698,9 @@ function renderPlayerOverview(summary, isCurrentUser) {
         main.className = "recent-roll-main";
         var recentTierLabel = tierForEP(roll.ep);
         var recentColor = colorForEP(roll.ep);
+        var recentIcon = getRarityIcon(recentTierLabel);
         main.innerHTML = "<span class='recent-roll-word profile-roll-word' style='color:" + recentColor + "'>" + escapeHtml(roll.word) + "</span>" +
-          "<span class='recent-roll-meta'><span class='roll-rarity show rarity-" + recentTier + "' style='color:" + recentColor + ";background:color-mix(in srgb, " + recentColor + " 14%, transparent)'><span class='tier-label'>" + recentTierLabel + "</span></span><span class='recent-roll-ep profile-roll-ep'>" + Number(roll.ep || 0).toLocaleString() + " EP</span>" + (roll.rank != null ? "<span>Rank #" + roll.rank + "</span>" : "") + "<span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
+          "<span class='recent-roll-meta'><span class='roll-rarity show rarity-" + recentTier + "' style='color:" + recentColor + ";background:color-mix(in srgb, " + recentColor + " 14%, transparent)'><span class='tier-label'><span class='rarity-icon'>" + recentIcon + "</span>" + recentTierLabel + "</span></span><span class='recent-roll-ep profile-roll-ep'>" + Number(roll.ep || 0).toLocaleString() + " EP</span>" + (roll.rank != null ? "<span>Rank #" + roll.rank + "</span>" : "") + "<span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
         item.appendChild(main);
         recentRolls.appendChild(item);
       });
@@ -2467,7 +2553,8 @@ async function renderResult(letters, res, leaderboard) {
   // settled on its final tier color, instead of announcing the result before the reveal plays.
   panel.style.setProperty("--tier-color", tierColor);
   var rank = rankForEP(res.totalEP, leaderboard);
-  rollRarity.innerHTML = "<span class='tier-label'>" + res.tier + (rank ? " · #" + rank : "") + "</span>";
+  var rarityIcon = getRarityIcon(res.tier);
+  rollRarity.innerHTML = "<span class='tier-label'><span class='rarity-icon'>" + rarityIcon + "</span>" + res.tier + (rank ? " · #" + rank : "") + "</span>";
   rollRarity.style.color = tierColor;
   rollRarity.style.background = "color-mix(in srgb, " + tierColor + " 14%, transparent)";
   rollRarity.className = "roll-rarity show rarity-" + res.tier.toLowerCase();
@@ -2591,7 +2678,8 @@ function renderLeaderboard(data) {
   featuredWordEl.style.color = featuredColor;
   featuredWordEl.className = "featured-word rarity-" + featuredTier.toLowerCase();
   var featTierEl = document.getElementById("featuredTier");
-  featTierEl.innerHTML = "<span class='tier-label'>" + featuredTier + "</span>";
+  var featuredIcon = getRarityIcon(featuredTier);
+  featTierEl.innerHTML = "<span class='tier-label'><span class='rarity-icon'>" + featuredIcon + "</span>" + featuredTier + "</span>";
   featTierEl.style.color = featuredColor;
   featTierEl.style.background = "color-mix(in srgb, " + featuredColor + " 14%, transparent)";
   featTierEl.className = "roll-rarity show rarity-" + featuredTier.toLowerCase();
@@ -2619,11 +2707,12 @@ function renderLeaderboard(data) {
       moveHtml = prevRank > rank ? "<span class='lb-move up'>&#9650;</span>" : "<span class='lb-move down'>&#9660;</span>";
     }
     var rankInner = i < 3 ? "<span class='lb-medal " + MEDAL_TIERS[i] + "'>" + rank + "</span>" : rank;
+    var tierIcon = getRarityIcon(rowTier);
     return "<div class='lb-row lb-body-row" + rankClass + tierClass + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms;--tier-color:" + wordColor + "'>" +
       "<span class='lb-rank" + (i < 3 ? " medal" : "") + "'>" + rankInner + "</span>" +
       "<span class='lb-word' style='color:" + wordColor + "'><button class='lb-word-btn' type='button' data-word='" + escapeHtml(p.word) + "' data-player='" + escapeHtml(p.name) + "' data-ep='" + p.ep + "' style='color:" + wordColor + "'>" + escapeHtml(p.word) + "</button></span>" +
       "<span class='lb-name'><button class='lb-name-btn' type='button' data-player='" + escapeHtml(p.name) + "'>" + escapeHtml(p.name) + "</button></span>" +
-      "<span class='lb-tier' style='color:" + wordColor + "; border: 1px solid " + wordColor + "; background: color-mix(in srgb, " + wordColor + " 10%, rgba(255,255,255,.04));'>" + tierLabel + "</span>" +
+      "<span class='lb-tier' style='color:" + wordColor + "; border: 1px solid " + wordColor + "; background: color-mix(in srgb, " + wordColor + " 10%, rgba(255,255,255,.04));'><span class='rarity-icon'>" + tierIcon + "</span>" + tierLabel + "</span>" +
       "<span class='lb-ep' style='color:" + wordColor + "' title='" + rowTier + "'>" + moveHtml + "<span class='lb-ep-num' data-target='" + (Number(p.ep) || 0) + "'>0</span> EP</span>" +
       "</div>";
   }).join("");
@@ -2699,7 +2788,8 @@ function showRollDetail(word, player, ep) {
   document.getElementById("detailAvatar").textContent = displayName.trim().charAt(0).toUpperCase() || "?";
 
   var tierEl = document.getElementById("detailTier");
-  tierEl.innerHTML = "<span class='tier-label'>" + tier + "</span>";
+  var tierIcon = getRarityIcon(tier);
+  tierEl.innerHTML = "<span class='tier-label'><span class='rarity-icon'>" + tierIcon + "</span>" + tier + "</span>";
   tierEl.style.color = color;
   tierEl.style.background = "color-mix(in srgb, " + color + " 14%, transparent)";
   tierEl.className = "roll-rarity show rarity-" + tier.toLowerCase();
@@ -2745,7 +2835,8 @@ function initializeBadgeDetailPage() {
   document.getElementById("badgeDetailName").textContent = name;
   document.getElementById("badgeDetailFamily").textContent = family + " badge";
   var rarity = document.getElementById("badgeDetailRarity");
-  rarity.innerHTML = "<span class='tier-label'>" + tier + "</span>";
+  var badgeIcon = getRarityIcon(tier);
+  rarity.innerHTML = "<span class='tier-label'><span class='rarity-icon'>" + badgeIcon + "</span>" + tier + "</span>";
   rarity.style.color = color;
   rarity.style.background = "color-mix(in srgb, " + color + " 14%, transparent)";
   rarity.style.marginTop = "12px";
