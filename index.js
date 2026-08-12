@@ -531,20 +531,43 @@ html.badge-detail-route .badge-detail-page { display:grid; }
 
   /* ---------- leaderboard ---------- */
   .leaderboard { margin-top: 44px; }
-  .leaderboard-page-title { margin: 0 0 14px; font-size: 1.15rem; letter-spacing: .08em; text-transform: uppercase; }
-  .featured-roll { max-width: 300px; margin: 0 auto 18px; padding: 14px; text-align: center; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); }
-  .featured-label { color: var(--text-3); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; }
-  .featured-word { margin: 8px 0 5px; font: 700 2rem "Space Mono", monospace; }
-  .featured-meta { color: var(--text-2); font-size: .72rem; }
-  .featured-stats { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
-  .featured-by { color: var(--text-3); font-size: .74rem; }
+  .leaderboard-page-title { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 14px; font-size: 1.15rem; letter-spacing: .08em; text-transform: uppercase; }
+  .lb-live { display: inline-flex; align-items: center; gap: 5px; font-size: .58rem; font-weight: 700; letter-spacing: .08em; color: var(--tier-uncommon); text-transform: uppercase; }
+  .lb-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tier-uncommon); box-shadow: 0 0 0 0 color-mix(in srgb, var(--tier-uncommon) 60%, transparent); animation: lbLivePulse 1.8s infinite; }
+  @keyframes lbLivePulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--tier-uncommon) 55%, transparent); } 70% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--tier-uncommon) 0%, transparent); } 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--tier-uncommon) 0%, transparent); } }
+  .featured-roll {
+    position: relative; max-width: 340px; margin: 0 auto 22px; padding: 26px 18px 20px;
+    text-align: center; border-radius: 16px; overflow: hidden;
+    background:
+      radial-gradient(60% 90% at 50% 0%, color-mix(in srgb, var(--tier-color, var(--tier-legendary)) 32%, transparent), transparent 70%),
+      #0b0b14;
+    border: 1px solid color-mix(in srgb, var(--tier-color, var(--tier-legendary)) 45%, transparent);
+    box-shadow: 0 16px 34px -18px color-mix(in srgb, var(--tier-color, var(--tier-legendary)) 65%, transparent);
+  }
+  .featured-roll::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: conic-gradient(from 0deg at 50% 15%, transparent, color-mix(in srgb, var(--tier-color, var(--tier-legendary)) 22%, transparent), transparent 30%);
+    animation: featuredSpin 9s linear infinite;
+  }
+  @keyframes featuredSpin { to { transform: rotate(360deg); } }
+  .featured-label { position: relative; color: color-mix(in srgb, var(--tier-color, var(--tier-legendary)) 80%, white 20%); font-size: .62rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
+  .featured-word { position: relative; margin: 10px 0 6px; font: 700 2.1rem "Space Mono", monospace; letter-spacing: .03em; }
+  .featured-word.rarity-legendary, .featured-word.rarity-mythic, .featured-word.rarity-divine, .featured-word.rarity-cosmic {
+    background-image: linear-gradient(100deg, var(--tier-color), color-mix(in srgb, var(--tier-color) 35%, white), var(--tier-color));
+    background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: badgeGradient 3s linear infinite;
+  }
+  .featured-meta { position: relative; color: var(--text-2); font-size: .72rem; }
+  .featured-stats { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .featured-by { position: relative; color: #cfcbe0; font-size: .74rem; }
+  .featured-ep-num { font-family: "Space Mono", monospace; font-weight: 700; color: color-mix(in srgb, var(--tier-color, var(--tier-legendary)) 75%, white 25%); }
   .leaderboard h2 { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; margin: 0 0 14px; }
   .lb-table { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
   .lb-row { display: grid; grid-template-columns: 36px 1fr 1fr 80px 100px; align-items: center; gap: 12px; padding: 12px 16px; font-size: .85rem; border-bottom: 1px solid var(--border); animation: rowIn .35s ease both; }
   .lb-head { color: var(--text-3); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-  .lb-body-row { transition: background .15s ease; }
+  .lb-body-row { position: relative; transition: background .15s ease, transform .15s ease, box-shadow .15s ease; }
   .lb-body-row:last-child { border-bottom: none; }
-  .lb-body-row:hover { background: var(--surface-2); }
+  .lb-body-row:hover { background: var(--surface-2); transform: translateY(-2px); box-shadow: 0 10px 20px -14px color-mix(in srgb, var(--tier-color, var(--accent)) 70%, transparent); z-index: 1; }
   .lb-body-row.me { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   .lb-body-row.rank-1 { border-left: 3px solid #f59e0b; background: color-mix(in srgb, #f59e0b 5%, var(--surface)); }
   .lb-body-row.rank-2 { border-left: 3px solid #a78bff; background: color-mix(in srgb, #a78bff 4%, var(--surface)); }
@@ -555,14 +578,26 @@ html.badge-detail-route .badge-detail-page { display:grid; }
   @keyframes lb-name-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
   @keyframes lb-pulse { 0% { box-shadow: inset 0 0 0 0 rgba(0,0,0,0); } 50% { box-shadow: inset 0 0 0 12px rgba(125,90,255,0.08); } 100% { box-shadow: inset 0 0 0 0 rgba(0,0,0,0); } }
   .lb-rank { font-weight: 700; color: var(--text-3); }
+  .lb-medal { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-family: "Space Mono", monospace; font-weight: 800; font-size: .66rem; color: #fff; }
+  .lb-medal.gold { background: linear-gradient(135deg, #ffd873, #f59e0b); box-shadow: 0 0 9px -2px #f59e0b; }
+  .lb-medal.silver { background: linear-gradient(135deg, #e4e4f2, #a78bff); box-shadow: 0 0 8px -2px #a78bff; }
+  .lb-medal.bronze { background: linear-gradient(135deg, #e0a878, #8b5cf6); box-shadow: 0 0 8px -2px #8b5cf6; }
   .lb-tier { font-size: .63rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 3px 7px; border-radius: 3px; background: transparent; color: currentColor; border: 1px solid currentColor; }
   .lb-word { font-family: "Space Mono", monospace; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-row.rarity-legendary .lb-word-btn, .lb-row.rarity-mythic .lb-word-btn, .lb-row.rarity-divine .lb-word-btn, .lb-row.rarity-cosmic .lb-word-btn {
+    background-image: linear-gradient(100deg, var(--tier-color), color-mix(in srgb, var(--tier-color) 40%, white), var(--tier-color));
+    background-size: 220% auto; -webkit-background-clip: text; background-clip: text;
+    animation: badgeGradient 3s linear infinite;
+  }
   .lb-word-btn { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); text-underline-offset: 3px; }
   .lb-word-btn:hover { text-decoration-color: currentColor; }
   .lb-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lb-name-btn { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
   .lb-name-btn:hover { text-decoration: underline; }
   .lb-ep { font-family: "Space Mono", monospace; font-weight: 700; }
+  .lb-move { font-size: .62rem; margin-right: 3px; }
+  .lb-move.up { color: var(--tier-uncommon); }
+  .lb-move.down { color: var(--tier-mythic); }
   .lb-rolls, .lb-best { font-family: "Space Mono", monospace; color: var(--text-2); font-size: .8rem; }
   .lb-empty { padding: 26px; text-align: center; color: var(--text-3); font-size: .85rem; }
   .detail-card { display: none; margin-top: 26px; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); }
@@ -1239,7 +1274,7 @@ html.badge-detail-route .badge-detail-page { display:grid; }
     </section>
 
     <section class="leaderboard" id="leaderboard">
-      <h1 class="leaderboard-page-title">Global Leaderboard</h1>
+      <h1 class="leaderboard-page-title">Global Leaderboard<span class="lb-live"><span class="lb-live-dot"></span>Live</span></h1>
       <div class="featured-roll" id="featuredRoll" hidden>
         <div class="featured-label">Top roll</div>
         <div class="featured-word" id="featuredWord"></div>
@@ -2517,7 +2552,28 @@ function escapeHtml(str) {
   });
 }
 
-var MEDALS = ["🥇", "🥈", "🥉"];
+var MEDAL_TIERS = ["gold", "silver", "bronze"];
+var prevRanks = {};
+var reduceMotionMQ = (typeof window !== "undefined" && window.matchMedia) ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+
+function animateCount(el, target, duration) {
+  if (!el) return;
+  target = Number(target) || 0;
+  if (reduceMotionMQ && reduceMotionMQ.matches) {
+    el.textContent = target.toLocaleString();
+    return;
+  }
+  duration = duration || 900;
+  var start = (typeof performance !== "undefined" ? performance.now() : Date.now());
+  function tick(now) {
+    var p = Math.min(1, (now - start) / duration);
+    var eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(target * eased).toLocaleString();
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
 function renderLeaderboard(data) {
   var body = document.getElementById("lbBody");
   var myName = getName().toLowerCase();
@@ -2530,31 +2586,51 @@ function renderLeaderboard(data) {
   var featured = data[0];
   var featuredColor = colorForEP(Number(featured.ep) || 0);
   var featuredTier = tierForEP(Number(featured.ep) || 0);
-  document.getElementById("featuredWord").textContent = featured.word;
-  document.getElementById("featuredWord").style.color = featuredColor;
+  var featuredWordEl = document.getElementById("featuredWord");
+  featuredWordEl.textContent = featured.word;
+  featuredWordEl.style.color = featuredColor;
+  featuredWordEl.className = "featured-word rarity-" + featuredTier.toLowerCase();
   var featTierEl = document.getElementById("featuredTier");
   featTierEl.innerHTML = "<span class='tier-label'>" + featuredTier + "</span>";
   featTierEl.style.color = featuredColor;
   featTierEl.style.background = "color-mix(in srgb, " + featuredColor + " 14%, transparent)";
   featTierEl.className = "roll-rarity show rarity-" + featuredTier.toLowerCase();
-  document.getElementById("featuredBy").textContent = featured.name + " · " + featured.ep + " EP";
-  document.getElementById("featuredRoll").hidden = !document.documentElement.classList.contains("leaderboard-page");
+  var featuredRollEl = document.getElementById("featuredRoll");
+  featuredRollEl.style.setProperty("--tier-color", featuredColor);
+  var featuredByEl = document.getElementById("featuredBy");
+  featuredByEl.innerHTML = escapeHtml(featured.name) + " · <span class='featured-ep-num' id='featuredEpNum'>0</span> EP";
+  featuredRollEl.hidden = !document.documentElement.classList.contains("leaderboard-page");
+  animateCount(document.getElementById("featuredEpNum"), Number(featured.ep) || 0, 1200);
+
+  var newRanks = {};
   body.innerHTML = data.map(function (p, i) {
-    var rankDisplay = MEDALS[i] || (i + 1);
     var mine = p.name.toLowerCase() === myName && myName !== "";
     var wordColor = colorForEP(Number(p.ep) || 0);
     var rowTier = tierForEP(Number(p.ep) || 0);
     var rankClass = i < 3 ? " rank-" + (i + 1) : "";
     var tierClass = " rarity-" + rowTier.toLowerCase();
     var tierLabel = rowTier.charAt(0).toUpperCase() + rowTier.slice(1);
-    return "<div class='lb-row lb-body-row" + rankClass + tierClass + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms'>" +
-      "<span class='lb-rank" + (i < 3 ? " medal" : "") + "'>" + rankDisplay + "</span>" +
+    var rankKey = p.name.toLowerCase();
+    var rank = i + 1;
+    newRanks[rankKey] = rank;
+    var prevRank = prevRanks[rankKey];
+    var moveHtml = "";
+    if (prevRank != null && prevRank !== rank) {
+      moveHtml = prevRank > rank ? "<span class='lb-move up'>&#9650;</span>" : "<span class='lb-move down'>&#9660;</span>";
+    }
+    var rankInner = i < 3 ? "<span class='lb-medal " + MEDAL_TIERS[i] + "'>" + rank + "</span>" : rank;
+    return "<div class='lb-row lb-body-row" + rankClass + tierClass + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms;--tier-color:" + wordColor + "'>" +
+      "<span class='lb-rank" + (i < 3 ? " medal" : "") + "'>" + rankInner + "</span>" +
       "<span class='lb-word' style='color:" + wordColor + "'><button class='lb-word-btn' type='button' data-word='" + escapeHtml(p.word) + "' data-player='" + escapeHtml(p.name) + "' data-ep='" + p.ep + "' style='color:" + wordColor + "'>" + escapeHtml(p.word) + "</button></span>" +
       "<span class='lb-name'><button class='lb-name-btn' type='button' data-player='" + escapeHtml(p.name) + "'>" + escapeHtml(p.name) + "</button></span>" +
       "<span class='lb-tier' style='color:" + wordColor + "; border: 1px solid " + wordColor + "; background: color-mix(in srgb, " + wordColor + " 10%, rgba(255,255,255,.04));'>" + tierLabel + "</span>" +
-      "<span class='lb-ep' style='color:" + wordColor + "' title='" + rowTier + "'>" + Number(p.ep || 0).toLocaleString() + " EP</span>" +
+      "<span class='lb-ep' style='color:" + wordColor + "' title='" + rowTier + "'>" + moveHtml + "<span class='lb-ep-num' data-target='" + (Number(p.ep) || 0) + "'>0</span> EP</span>" +
       "</div>";
   }).join("");
+  prevRanks = newRanks;
+  body.querySelectorAll(".lb-ep-num").forEach(function (el, i) {
+    setTimeout(function () { animateCount(el, el.getAttribute("data-target"), 800); }, i * 25);
+  });
   body.querySelectorAll(".lb-word-btn").forEach(function (button) {
     button.addEventListener("click", function () {
       window.location.href = "/roll/" + encodeURIComponent(button.dataset.word) + "?name=" + encodeURIComponent(button.dataset.player) + "&ep=" + encodeURIComponent(button.dataset.ep);
