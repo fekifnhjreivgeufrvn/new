@@ -1008,11 +1008,14 @@ html.badge-detail-route .badge-detail-page { display:grid; }
   .profile-identity-copy{min-width:0;display:grid;gap:3px}
   .profile-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
   .profile-display-name{margin:0;font-size:clamp(1.45rem,3vw,2rem);line-height:1.05;font-weight:850;letter-spacing:-.025em}
-  .profile-inline-editor{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .profile-inline-editor{display:none;align-items:center;gap:8px;flex-wrap:wrap}
+  .profile-inline-editor:not([hidden]){display:flex}
   .profile-inline-editor input{width:min(260px,100%);padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
   .profile-inline-editor button{padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);cursor:pointer;font:700 .72rem inherit}
   .profile-inline-editor .profile-editor-save{background:var(--accent);border-color:var(--accent);color:#08101b}
   .profile-inline-editor .profile-editor-cancel{background:transparent;color:var(--text-2)}
+  .profile-edit-btn{position:static;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text-3);cursor:pointer;font:inherit;opacity:.8;transition:color .18s ease,background .18s ease,border-color .18s ease,opacity .18s ease}
+  .profile-edit-btn:hover,.profile-edit-btn:focus-visible{opacity:1;color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface));border-color:var(--border);outline:none}
   .profile-username{margin:0;color:var(--text-3);font-size:.82rem;font-weight:650;letter-spacing:.04em}
   .profile-identity .profile-subtitle{margin:3px 0 0;color:var(--text-2);font-size:.76rem;line-height:1.4}
   .profile-section{margin-top:12px;text-align:left}
@@ -1033,8 +1036,6 @@ html.badge-detail-route .badge-detail-page { display:grid; }
   .profile-secondary-stat>span{display:block;color:var(--text-3);font-size:.58rem;font-weight:750;letter-spacing:.08em;text-transform:uppercase}
   .profile-secondary-stat>strong{display:block;overflow:hidden;margin-top:4px;color:var(--text);font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}
   .profile-editable-stat{padding-right:38px}
-  .profile-edit-btn{position:absolute;right:8px;bottom:8px;width:24px;height:24px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text-3);cursor:pointer;font:inherit;opacity:.65;transition:color .18s ease,background .18s ease,border-color .18s ease,opacity .18s ease}
-  .profile-edit-btn:hover,.profile-edit-btn:focus-visible{opacity:1;color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface));border-color:var(--border);outline:none}
   .profile-roll-history{margin-top:30px}
   .profile-roll-history #recentRolls{display:grid;gap:8px}
   .profile-roll-history .recent-roll{text-align:left}
