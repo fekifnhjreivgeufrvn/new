@@ -470,10 +470,10 @@ const HTML_PAGE = `<!DOCTYPE html>
   .badge-item .badge-open-hint { color:var(--text-3); font-size:.58rem; margin-left:8px; letter-spacing:.06em; text-transform:uppercase; }
 
   /* ---------- badge detail page ---------- */
-  html.badge-detail-page .hero-card, html.badge-detail-page .result-card, html.badge-detail-page .leaderboard, html.badge-detail-page .detail-card, html.badge-detail-page .admin-panel, html.badge-detail-page .account-page-wrap { display:none; }
-  html.badge-detail-page .container { max-width:680px; padding-top:64px; }
+  html.badge-detail-route .hero-card, html.badge-detail-route .result-card, html.badge-detail-route .leaderboard, html.badge-detail-route .detail-card, html.badge-detail-route .admin-panel, html.badge-detail-route .account-page-wrap { display:none; }
+  html.badge-detail-route .container { max-width:680px; padding-top:64px; }
   .badge-detail-page { display:none; gap:18px; }
-html.badge-detail-page .badge-detail-page { display:grid; }
+html.badge-detail-route .badge-detail-page { display:grid; }
   .badge-detail-back { border:1px solid var(--border); background:var(--surface); color:var(--text-2); border-radius:8px; padding:7px 11px; cursor:pointer; font:600 .78rem inherit; width:max-content; margin:0 0 2px; }
   .badge-detail-back:hover { color:var(--text); border-color:var(--border-strong); }
   .badge-detail-card { position:relative; overflow:hidden; border:1px solid var(--border); border-left:4px solid var(--badge-color); background:color-mix(in srgb,var(--badge-color) 8%,var(--surface)); padding:22px; border-radius:10px; box-shadow:0 0 26px -13px var(--badge-color); }
@@ -1028,7 +1028,6 @@ html.badge-detail-page .badge-detail-page { display:grid; }
   }
 
 
-  html.badge-detail-mode,
   html.badge-detail-mode body,
   body.badge-detail-mode {
     background: var(--bg, #0b0d10) !important;
@@ -2578,7 +2577,7 @@ function showRollDetail(word, player, ep) {
 function initializeBadgeDetailPage() {
   var path = window.location.pathname;
   if (path.indexOf("/badge/") !== 0) return false;
-  document.documentElement.classList.add("badge-detail-page");
+  document.documentElement.classList.add("badge-detail-route");
   var name = decodeURIComponent(path.slice("/badge/".length) || "Badge");
   var params = new URLSearchParams(window.location.search);
   var ep = Number(params.get("ep")) || 0;
