@@ -34,8 +34,21 @@ const HTML_PAGE = `<!DOCTYPE html>
       try{var r=await fetch('/api/admin/manual-score',{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',cache:'no-store',body:JSON.stringify({name:name,word:word,ep:ep})});var d={};try{d=await r.json()}catch(_){} if(!r.ok)throw new Error(d.error||('Request failed ('+r.status+')')); if(typeof leaderboardCache!=='undefined')leaderboardCache=d.leaderboard||[]; if(typeof renderLeaderboard==='function')renderLeaderboard(d.leaderboard||[]); if(status)status.textContent='Score added - leaderboard rebuilt.'; if(typeof showToast==='function')showToast('Manual score added');}catch(e){if(status)status.textContent='Failed: '+(e.message||'request error');}finally{submit.disabled=false;}
     });
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initManualScoreDebug);else initManualScoreDebug();
-  new MutationObserver(initManualScoreDebug).observe(document.documentElement,{childList:true,subtree:true});
+  function initDeleteScoreDebug() {
+    var btn=document.getElementById('deleteScoreBtn'), form=document.getElementById('deleteScoreForm'), submit=document.getElementById('deleteScoreSubmit');
+    if(!btn||!form||!submit||btn.dataset.bound==='1') return;
+    btn.dataset.bound='1';
+    btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();form.hidden=!form.hidden;form.style.display=form.hidden?'none':'grid';});
+    submit.addEventListener('click',async function(e){
+      e.preventDefault();e.stopPropagation();
+      var name=document.getElementById('deleteScoreName').value.trim(), word=document.getElementById('deleteScoreWord').value.trim().toUpperCase(), status=document.getElementById('deleteScoreStatus');
+      if(!name||!/^[A-Z]{6}$/.test(word)){if(status)status.textContent='Enter a name and 6-letter word.';return;}
+      submit.disabled=true;if(status)status.textContent='Deleting...';
+      try{var r=await fetch('/api/admin/delete-score',{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',cache:'no-store',body:JSON.stringify({name:name,word:word})});var d={};try{d=await r.json()}catch(_){} if(!r.ok)throw new Error(d.error||('Request failed ('+r.status+')')); if(typeof leaderboardCache!=='undefined')leaderboardCache=d.leaderboard||[]; if(typeof renderLeaderboard==='function')renderLeaderboard(d.leaderboard||[]); if(status)status.textContent='Score deleted - leaderboard rebuilt.'; if(typeof showToast==='function')showToast('Score deleted'); document.getElementById('deleteScoreName').value=''; document.getElementById('deleteScoreWord').value='';}catch(e){if(status)status.textContent='Failed: '+(e.message||'request error');}finally{submit.disabled=false;}
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){initManualScoreDebug(); initDeleteScoreDebug();});else {initManualScoreDebug(); initDeleteScoreDebug();}
+  new MutationObserver(function(){initManualScoreDebug(); initDeleteScoreDebug();}).observe(document.documentElement,{childList:true,subtree:true});
 })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1254,6 +1267,12 @@ html.badge-detail-route .badge-detail-page { display:grid; }
           <input id="manualScoreWord" maxlength="6" placeholder="ABCDEF">
           <input id="manualScoreEP" type="number" min="0" step="1" placeholder="EP">
           <button class="admin-btn" id="manualScoreSubmit" type="button">Add</button><span id="manualScoreStatus" style="grid-column:1/-1;min-height:1.2em"></span>
+        </div>
+        <button class="admin-btn" id="deleteScoreBtn" type="button">Delete score</button>
+        <div id="deleteScoreForm" hidden style="margin-top:10px;display:grid;gap:8px;grid-template-columns:1fr 1fr auto;">
+          <input id="deleteScoreName" maxlength="20" placeholder="Name">
+          <input id="deleteScoreWord" maxlength="6" placeholder="ABCDEF">
+          <button class="admin-btn" id="deleteScoreSubmit" type="button">Delete</button><span id="deleteScoreStatus" style="grid-column:1/-1;min-height:1.2em"></span>
         </div>
         <button class="admin-btn" id="recalcBtn" type="button">Recalculate all scores</button>
       </div>
@@ -3257,6 +3276,54 @@ export default {
         console.error("manual score error", err);
         return json({
           error: "Manual score failed",
+          detail: String(err?.stack || err?.message || err)
+        }, 500);
+      }
+    }
+
+    // --- Admin debug: delete a score from the live leaderboard. ---
+    if (url.pathname === "/api/admin/delete-score" && request.method === "POST") {
+      try {
+        let body;
+        try { body = await request.json(); } catch (_) { return json({ error: "Invalid JSON" }, 400); }
+
+        const name = String(body?.name || "").trim().slice(0, 32);
+        const word = String(body?.word || "").trim().toUpperCase();
+
+        if (!name) return json({ error: "Name is required" }, 400);
+        if (!/^[A-Z]{6}$/.test(word)) return json({ error: "Word must be exactly 6 letters" }, 400);
+
+        let index = null;
+        const rawIndex = await env.PLAYERS.get(ROLL_INDEX_KEY);
+        if (rawIndex) {
+          try { index = JSON.parse(rawIndex); } catch (_) { index = null; }
+        }
+
+        let top = Array.isArray(index?.leaderboard) ? index.leaderboard.slice() : [];
+        const beforeCount = top.length;
+        top = top.filter((r) => !(r.name && String(r.name).toLowerCase() === name.toLowerCase() && r.word === word));
+        const deleted = beforeCount - top.length;
+
+        top.sort((a, b) => {
+          const epDiff = (Number(b.ep) || 0) - (Number(a.ep) || 0);
+          if (epDiff) return epDiff;
+          return (Number(a.ts) || 0) - (Number(b.ts) || 0);
+        });
+        top = top.slice(0, MAX_LEADERBOARD);
+
+        const cutoffEp = top.length ? Number(top[top.length - 1].ep) || 0 : null;
+        await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({
+          count: top.length,
+          cutoffEp,
+          leaderboard: top,
+          updatedAt: Date.now()
+        }));
+
+        return json({ ok: true, deleted, leaderboard: top });
+      } catch (err) {
+        console.error("delete score error", err);
+        return json({
+          error: "Delete score failed",
           detail: String(err?.stack || err?.message || err)
         }, 500);
       }
