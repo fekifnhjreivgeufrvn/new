@@ -421,6 +421,69 @@ const HTML_PAGE = `<!DOCTYPE html>
   }
   .share-btn:hover { border-color: var(--border-strong); color: var(--text); transform: translateY(-1px); }
 
+  /* ---------- leaderboard podium polish ---------- */
+  .lb-body-row.rank-1, .lb-body-row.rank-2, .lb-body-row.rank-3 {
+    position: relative;
+    overflow: hidden;
+    border-left: 3px solid var(--podium-color);
+    background: color-mix(in srgb, var(--podium-color) 8%, var(--surface));
+  }
+  .lb-body-row.rank-1 { --podium-color: #f5b301; box-shadow: 0 0 24px -12px #f5b301; }
+  .lb-body-row.rank-2 { --podium-color: #94a3b8; box-shadow: 0 0 20px -13px #94a3b8; }
+  .lb-body-row.rank-3 { --podium-color: #cd7f32; box-shadow: 0 0 20px -13px #cd7f32; }
+  .lb-body-row.rank-1::after, .lb-body-row.rank-2::after, .lb-body-row.rank-3::after {
+    content: ""; position:absolute; inset:0; pointer-events:none;
+    background: linear-gradient(110deg, transparent, color-mix(in srgb, var(--podium-color) 10%, transparent), transparent);
+    transform: translateX(-110%); animation: podiumSweep 3.2s ease-in-out infinite;
+  }
+  .lb-body-row.rank-1 .lb-rank { font-size: 1.05rem; filter: drop-shadow(0 0 7px #f5b301); }
+  .lb-body-row.rank-2 .lb-rank { font-size: 1rem; filter: drop-shadow(0 0 6px #94a3b8); }
+  .lb-body-row.rank-3 .lb-rank { font-size: 1rem; filter: drop-shadow(0 0 6px #cd7f32); }
+  .lb-body-row.rank-1 .lb-word, .lb-body-row.rank-2 .lb-word, .lb-body-row.rank-3 .lb-word { font-weight: 850; }
+  @keyframes podiumSweep { 0%,65%,100% { transform:translateX(-110%); opacity:0; } 75% { opacity:1; } 90% { transform:translateX(110%); opacity:0; } }
+
+  /* ---------- rarity-specific roll reveal ---------- */
+  .result-card.reveal-common .result-header { animation: revealCommon .45s ease both; }
+  .result-card.reveal-uncommon .result-header { animation: revealUncommon .6s cubic-bezier(.2,.8,.2,1) both; }
+  .result-card.reveal-rare .result-header { animation: revealRare .72s cubic-bezier(.2,.8,.2,1) both; }
+  .result-card.reveal-epic .result-header { animation: revealEpic .82s cubic-bezier(.16,1,.3,1) both; }
+  .result-card.reveal-legendary .result-header { animation: revealLegendary .95s cubic-bezier(.16,1,.3,1) both; }
+  .result-card.reveal-mythic .result-header { animation: revealMythic 1s cubic-bezier(.16,1,.3,1) both; }
+  .result-card.reveal-divine .result-header { animation: revealDivine 1.05s cubic-bezier(.16,1,.3,1) both; }
+  .result-card.reveal-cosmic .result-header { animation: revealCosmic 1.2s cubic-bezier(.16,1,.3,1) both; }
+  .result-card.reveal-legendary, .result-card.reveal-mythic, .result-card.reveal-divine, .result-card.reveal-cosmic { --reveal-color: var(--tier-color); }
+  .result-card.reveal-legendary .roll-rarity, .result-card.reveal-mythic .roll-rarity, .result-card.reveal-divine .roll-rarity, .result-card.reveal-cosmic .roll-rarity { animation: rarityPillReveal .8s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes revealCommon { from { opacity:.5; transform:translateY(5px); } to { opacity:1; transform:none; } }
+  @keyframes revealUncommon { 0% { opacity:.5; transform:scale(.96); } 60% { transform:scale(1.025); } 100% { opacity:1; transform:scale(1); } }
+  @keyframes revealRare { 0% { opacity:.45; transform:translateY(8px); filter:brightness(.8); } 55% { filter:brightness(1.35); } 100% { opacity:1; transform:none; filter:none; } }
+  @keyframes revealEpic { 0% { opacity:0; transform:scale(.9); filter:brightness(.7); } 55% { opacity:1; transform:scale(1.045); filter:brightness(1.45); } 100% { transform:scale(1); filter:brightness(1); } }
+  @keyframes revealLegendary { 0% { opacity:0; transform:scale(.86) rotate(-1deg); filter:brightness(.65); } 35% { opacity:1; transform:scale(1.07) rotate(.5deg); filter:brightness(1.8); } 60% { transform:scale(.99); } 100% { transform:scale(1); filter:brightness(1); } }
+  @keyframes revealMythic { 0% { opacity:0; transform:translateY(12px) scale(.82); filter:saturate(.5) brightness(.6); } 38% { opacity:1; transform:translateY(-3px) scale(1.08); filter:saturate(1.5) brightness(1.7); } 60% { transform:translateY(0) scale(.99); } 100% { transform:none; filter:none; } }
+  @keyframes revealDivine { 0% { opacity:0; transform:scale(.78); box-shadow:0 0 0 transparent; } 45% { opacity:1; transform:scale(1.08); box-shadow:0 0 38px -4px var(--reveal-color); } 100% { transform:scale(1); } }
+  @keyframes revealCosmic { 0% { opacity:0; transform:scale(.72) rotate(-2deg); filter:blur(2px) saturate(.4); } 35% { opacity:1; transform:scale(1.1) rotate(1deg); filter:blur(0) saturate(1.8) brightness(1.8); } 58% { transform:scale(.98) rotate(0); } 100% { transform:scale(1); filter:saturate(1) brightness(1); } }
+  @keyframes rarityPillReveal { from { opacity:0; transform:translateY(8px) scale(.82); } to { opacity:1; transform:none; } }
+
+  /* clickable badge entries */
+  .badge-item { cursor: pointer; transition: transform .18s ease, border-color .18s ease, filter .18s ease; }
+  .badge-item:hover { transform: translateX(3px); filter:brightness(1.04); }
+  .badge-item:focus-visible { outline:2px solid var(--badge-color, var(--accent)); outline-offset:2px; }
+  .badge-item .badge-open-hint { color:var(--text-3); font-size:.58rem; margin-left:8px; letter-spacing:.06em; text-transform:uppercase; }
+
+  /* ---------- badge detail page ---------- */
+  html.badge-detail-page .hero-card, html.badge-detail-page .result-card, html.badge-detail-page .leaderboard, html.badge-detail-page .detail-card, html.badge-detail-page .admin-panel, html.badge-detail-page .account-page-wrap { display:none; }
+  html.badge-detail-page .container { max-width:680px; padding-top:64px; }
+  .badge-detail-page { display:grid; gap:18px; }
+  .badge-detail-back { border:1px solid var(--border); background:var(--surface); color:var(--text-2); border-radius:8px; padding:7px 11px; cursor:pointer; font:600 .78rem inherit; width:max-content; }
+  .badge-detail-back:hover { color:var(--text); border-color:var(--border-strong); }
+  .badge-detail-card { position:relative; overflow:hidden; border:1px solid var(--border); border-left:4px solid var(--badge-color); background:color-mix(in srgb,var(--badge-color) 8%,var(--surface)); padding:22px; border-radius:10px; box-shadow:0 0 26px -13px var(--badge-color); }
+  .badge-detail-card.rarity-legendary, .badge-detail-card.rarity-mythic, .badge-detail-card.rarity-divine, .badge-detail-card.rarity-cosmic { background:linear-gradient(110deg,color-mix(in srgb,var(--badge-color) 22%,var(--surface)),color-mix(in srgb,var(--badge-color) 6%,var(--surface)),color-mix(in srgb,var(--badge-color) 18%,var(--surface))); background-size:180% 100%; animation:badgeGradient 2.4s ease-in-out infinite; }
+  .badge-detail-icon { font-size:2.4rem; line-height:1; }
+  .badge-detail-name { margin:10px 0 4px; font-size:1.35rem; font-weight:850; }
+  .badge-detail-family { color:var(--text-3); font-size:.68rem; letter-spacing:.09em; text-transform:uppercase; }
+  .badge-detail-rarity { display:inline-flex; margin-top:12px; padding:5px 10px; border:1px solid currentColor; border-radius:999px; font-size:.65rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+  .badge-detail-ep { margin-top:14px; font:800 1rem "Space Mono",monospace; color:var(--badge-color); }
+  .badge-detail-explanation { margin:20px 0 0; padding-top:16px; border-top:1px dashed var(--border); color:var(--text-2); font-size:.84rem; line-height:1.7; }
+
   /* ---------- leaderboard ---------- */
   .leaderboard { margin-top: 44px; }
   .leaderboard-page-title { margin: 0 0 14px; font-size: 1.15rem; letter-spacing: .08em; text-transform: uppercase; }
@@ -1120,6 +1183,18 @@ const HTML_PAGE = `<!DOCTYPE html>
       </div>
       <div class="detail-summary" id="detailSummary"></div>
       <ul class="badge-list detail-list" id="detailBadgeList"></ul>
+    </section>
+
+    <section class="badge-detail-page" id="badgeDetailPage" hidden aria-live="polite">
+      <button class="badge-detail-back" id="badgeDetailBack" type="button">&larr; Back</button>
+      <div class="badge-detail-card" id="badgeDetailCard">
+        <div class="badge-detail-icon" id="badgeDetailIcon"></div>
+        <h1 class="badge-detail-name" id="badgeDetailName"></h1>
+        <div class="badge-detail-family" id="badgeDetailFamily"></div>
+        <div class="badge-detail-rarity" id="badgeDetailRarity"></div>
+        <div class="badge-detail-ep" id="badgeDetailEP"></div>
+        <p class="badge-detail-explanation" id="badgeDetailExplanation"></p>
+      </div>
     </section>
 
     <section class="admin-panel" id="adminPanel" hidden aria-label="Admin tools">
@@ -2205,6 +2280,17 @@ async function renderResult(letters, res, leaderboard) {
     li.innerHTML = "<div><span class='badge-name'><span class='badge-icon' aria-hidden='true'>" + icon + "</span>" + b.name + "</span>" +
       "<span class='badge-desc'>" + b.desc + "</span>" + slots + "</div>" +
       "<span class='badge-ep'>+" + b.ep + " EP</span>";
+    li.tabIndex = 0;
+    li.setAttribute("role", "button");
+    li.dataset.badgeName = b.name;
+    li.dataset.badgeFamily = b.family || "badge";
+    li.dataset.badgeEp = String(b.ep);
+    li.dataset.badgeDesc = b.desc || "";
+    var openBadge = function () {
+      window.location.href = "/badge/" + encodeURIComponent(b.name) + "?ep=" + encodeURIComponent(b.ep) + "&family=" + encodeURIComponent(b.family || "badge") + "&desc=" + encodeURIComponent(b.desc || "");
+    };
+    li.addEventListener("click", openBadge);
+    li.addEventListener("keydown", function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openBadge(); } });
     list.insertBefore(li, list.firstChild);
     runningEP += b.ep;
     // Recolor the running total (and its glow) to match the rarity tier of the EP accumulated
@@ -2226,6 +2312,8 @@ async function renderResult(letters, res, leaderboard) {
   rollRarity.style.color = tierColor;
   rollRarity.style.background = "color-mix(in srgb, " + tierColor + " 14%, transparent)";
   rollRarity.className = "roll-rarity show rarity-" + res.tier.toLowerCase();
+  panel.className = panel.className.replace(/\breveal-[a-z]+\b/g, "");
+  panel.classList.add("reveal-" + res.tier.toLowerCase());
 
   if (res.tier === "Epic") spawnConfetti([TIER_COLORS.Epic, TIER_COLORS.Rare, "#ffffff"], 16);
   else if (res.tier === "Legendary") spawnConfetti([TIER_COLORS.Legendary, TIER_COLORS.Epic, "#ffffff"], 26);
@@ -2346,7 +2434,8 @@ function renderLeaderboard(data) {
     var mine = p.name.toLowerCase() === myName && myName !== "";
     var wordColor = colorForEP(Number(p.ep) || 0);
     var rowTier = tierForEP(Number(p.ep) || 0);
-    return "<div class='lb-row lb-body-row" + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms'>" +
+    var rankClass = i < 3 ? " rank-" + (i + 1) : "";
+    return "<div class='lb-row lb-body-row" + rankClass + (mine ? " me" : "") + "' style='animation-delay:" + (i * 30) + "ms'>" +
       "<span class='lb-rank'>" + rankDisplay + "</span>" +
       "<span class='lb-word' style='color:" + wordColor + "'><button class='lb-word-btn' type='button' data-word='" + escapeHtml(p.word) + "' data-player='" + escapeHtml(p.name) + "' data-ep='" + p.ep + "' style='color:" + wordColor + "'>" + escapeHtml(p.word) + "</button></span>" +
       "<span class='lb-name'><button class='lb-name-btn' type='button' data-player='" + escapeHtml(p.name) + "'>" + escapeHtml(p.name) + "</button></span>" +
@@ -2439,6 +2528,11 @@ function showRollDetail(word, player, ep) {
     }
     slots += "</div>";
     item.innerHTML = "<div><span class='badge-name'><span class='badge-icon' aria-hidden='true'>" + (BADGE_ICONS[badge.family] || "✨") + "</span>" + badge.name + "</span><span class='badge-desc'>" + badge.desc + "</span>" + slots + "</div><span class='badge-ep'>+" + badge.ep + " EP</span>";
+    item.tabIndex = 0;
+    item.setAttribute("role", "button");
+    var openBadge = function () { window.location.href = "/badge/" + encodeURIComponent(badge.name) + "?ep=" + encodeURIComponent(badge.ep) + "&family=" + encodeURIComponent(badge.family || "badge") + "&desc=" + encodeURIComponent(badge.desc || ""); };
+    item.addEventListener("click", openBadge);
+    item.addEventListener("keydown", function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openBadge(); } });
     list.appendChild(item);
   });
   detail.classList.add("show");
@@ -2446,6 +2540,39 @@ function showRollDetail(word, player, ep) {
 
 document.getElementById("detailBack").addEventListener("click", function () {
   window.location.href = "/#leaderboard";
+});
+
+function initializeBadgeDetailPage() {
+  var path = window.location.pathname;
+  if (path.indexOf("/badge/") !== 0) return false;
+  document.documentElement.classList.add("badge-detail-page");
+  var name = decodeURIComponent(path.slice("/badge/".length) || "Badge");
+  var params = new URLSearchParams(window.location.search);
+  var ep = Number(params.get("ep")) || 0;
+  var family = params.get("family") || "badge";
+  var desc = params.get("desc") || "A special pattern badge discovered in a roll.";
+  var tier = tierForEP(ep);
+  var color = colorForEP(ep);
+  document.getElementById("badgeDetailPage").hidden = false;
+  document.getElementById("badgeDetailIcon").textContent = BADGE_ICONS[family] || "✨";
+  document.getElementById("badgeDetailName").textContent = name;
+  document.getElementById("badgeDetailFamily").textContent = family + " badge";
+  var rarity = document.getElementById("badgeDetailRarity");
+  rarity.textContent = tier;
+  rarity.style.color = color;
+  rarity.style.background = "color-mix(in srgb, " + color + " 14%, transparent)";
+  rarity.className = "badge-detail-rarity rarity-" + tier.toLowerCase();
+  document.getElementById("badgeDetailEP").textContent = "+" + ep + " EP";
+  document.getElementById("badgeDetailExplanation").textContent = desc;
+  var card = document.getElementById("badgeDetailCard");
+  card.style.setProperty("--badge-color", color);
+  card.className = "badge-detail-card rarity-" + tier.toLowerCase();
+  document.title = name + " — SixRoll badge";
+  return true;
+}
+
+document.getElementById("badgeDetailBack").addEventListener("click", function () {
+  if (window.history.length > 1) window.history.back(); else window.location.href = "/";
 });
 
 async function initializeDetailPage() {
@@ -2690,6 +2817,7 @@ document.addEventListener("click", function (event) {
 });
 
 refreshAuthState().then(function () {
+  if (initializeBadgeDetailPage()) return;
   initializeDetailPage().then(function (isDetailPage) {
     if (!isDetailPage) loadLeaderboard();
   });
@@ -2714,7 +2842,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if ((url.pathname === "/" || url.pathname === "/leaderboard" || url.pathname === "/account" || /^\/account\/[^/]+$/.test(url.pathname) || /^\/roll\/[A-Za-z]{6}$/.test(url.pathname)) && request.method === "GET") {
+    if ((url.pathname === "/" || url.pathname === "/leaderboard" || url.pathname === "/account" || /^\/account\/[^/]+$/.test(url.pathname) || /^\/roll\/[A-Za-z]{6}$/.test(url.pathname) || /^\/badge\/.+/.test(url.pathname)) && request.method === "GET") {
       return new Response(HTML_PAGE, { headers: { "content-type": "text/html;charset=UTF-8" } });
     }
 
