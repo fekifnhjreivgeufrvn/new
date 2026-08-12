@@ -2646,26 +2646,59 @@ function getCooldownRemaining() {
   return Math.max(0, until - Date.now());
 }
 
-function startCooldownBar(durationMs) {
+var cooldownAnimationFrame = 0;
+
+function getCooldownProgress() {
+  var until = parseInt(localStorage.getItem("sixroll_next_roll") || "0", 10);
+  if (!until) return 1;
+
+  /*
+   * The countdown itself is authoritative.  Do not depend on a second
+   * localStorage timestamp: older sessions/tabs can have a stale or missing
+   * cooldown_start value, which makes the visual bar disagree with the timer.
+   *
+   * Progress is therefore simply:
+   *   elapsed / total = 1 - remaining / COOLDOWN_MS
+   */
+  var remaining = Math.max(0, until - Date.now());
+  return Math.max(0, Math.min(1, 1 - (remaining / COOLDOWN_MS)));
+}
+
+function startCooldownBar() {
   var fill = document.getElementById("cooldownFill");
-  fill.style.transition = "none";
-  fill.style.width = "0%";
-  void fill.offsetWidth;
-  fill.style.transition = "width " + durationMs + "ms linear";
-  fill.style.width = "100%";
+  if (!fill) return;
+  if (cooldownAnimationFrame) cancelAnimationFrame(cooldownAnimationFrame);
+
+  function frame() {
+    var remaining = getCooldownRemaining();
+    var progress = getCooldownProgress();
+    fill.style.transition = "none";
+    fill.style.width = (progress * 100).toFixed(3) + "%";
+
+    if (remaining > 0) {
+      cooldownAnimationFrame = requestAnimationFrame(frame);
+    } else {
+      fill.style.width = "100%";
+      cooldownAnimationFrame = 0;
+    }
+  }
+
+  frame();
 }
 
 function syncCooldownUI() {
   var unlimited = localStorage.getItem("sixroll_unlimited") === "1";
   var btn = document.getElementById("rollBtn");
   var wrap = document.getElementById("cooldownWrap");
+  if (!btn || !wrap) return;
   if (unlimited) { btn.disabled = false; wrap.hidden = true; return; }
   var remaining = getCooldownRemaining();
   if (remaining <= 0) {
     btn.disabled = false; wrap.hidden = true;
+    if (cooldownAnimationFrame) { cancelAnimationFrame(cooldownAnimationFrame); cooldownAnimationFrame = 0; }
   } else {
     btn.disabled = true; wrap.hidden = false;
-    startCooldownBar(remaining);
+    startCooldownBar();
   }
 }
 
@@ -2686,6 +2719,20 @@ function tickCooldownText() {
   }
 }
 setInterval(tickCooldownText, 1000);
+
+window.addEventListener("storage", function (event) {
+  if (event.key === "sixroll_next_roll" || event.key === "sixroll_unlimited") {
+    syncCooldownUI();
+    tickCooldownText();
+  }
+});
+
+document.addEventListener("visibilitychange", function () {
+  if (!document.hidden) {
+    syncCooldownUI();
+    tickCooldownText();
+  }
+});
 
 /* ================= roll flow ================= */
 var rollInProgress = false;
@@ -2717,7 +2764,12 @@ document.getElementById("rollBtn").addEventListener("click", async function () {
 
   var unlimited = localStorage.getItem("sixroll_unlimited") === "1";
   if (!unlimited) {
+    /*
+     * Store only the absolute unlock time.  The progress bar and countdown
+     * both derive their state from this same timestamp.
+     */
     localStorage.setItem("sixroll_next_roll", String(Date.now() + COOLDOWN_MS));
+    localStorage.removeItem("sixroll_cooldown_start");
   }
 
   if (authState.user) {
