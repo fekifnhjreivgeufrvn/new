@@ -3215,7 +3215,6 @@ export default {
         let body;
         try { body = await request.json(); } catch (_) { return json({ error: "Invalid JSON" }, 400); }
 
-        // Use the same admin guard as the existing admin endpoints.
         const admin = await requireAdmin(request, env);
         if (!admin) return json({ error: "Unauthorized" }, 401);
 
@@ -3227,25 +3226,26 @@ export default {
         if (!/^[A-Z]{6}$/.test(word)) return json({ error: "Word must be exactly 6 letters" }, 400);
         if (!Number.isFinite(ep) || ep < 0) return json({ error: "EP must be a non-negative number" }, 400);
 
-        const record = {
-          word,
-          name,
-          ep,
-          ts: Date.now()
-        };
+        const record = { word, name, ep, ts: Date.now() };
 
-        // Read the existing legacy roll store using the project's own helper.
-        const rolls = await getRolls(env);
-        rolls.push(record);
-        rolls.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
+        // Diagnostic path: read the already-maintained leaderboard index, add the
+        // supplied score, sort it, and write the index back. This isolates whether
+        // the live leaderboard index itself can be updated.
+        let index = null;
+        const rawIndex = await env.PLAYERS.get(ROLL_INDEX_KEY);
+        if (rawIndex) {
+          try { index = JSON.parse(rawIndex); } catch (_) { index = null; }
+        }
 
-        // Preserve the complete legacy roll store if the project already does so;
-        // otherwise use the existing MAX_ROLLS limit.
-        const storedRolls = typeof MAX_ROLLS === "number" ? rolls.slice(0, MAX_ROLLS) : rolls;
-        await env.PLAYERS.put(KV_KEY, JSON.stringify(storedRolls));
+        let top = Array.isArray(index?.leaderboard) ? index.leaderboard.slice() : [];
+        top.push(record);
+        top.sort((a, b) => {
+          const epDiff = (Number(b.ep) || 0) - (Number(a.ep) || 0);
+          if (epDiff) return epDiff;
+          return (Number(a.ts) || 0) - (Number(b.ts) || 0);
+        });
+        top = top.slice(0, MAX_LEADERBOARD);
 
-        // Always rebuild the authoritative top-20 index from what was stored.
-        const top = storedRolls.slice(0, 20);
         const cutoffEp = top.length ? Number(top[top.length - 1].ep) || 0 : null;
         await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({
           count: top.length,
@@ -3259,7 +3259,7 @@ export default {
         console.error("manual score error", err);
         return json({
           error: "Manual score failed",
-          detail: String(err?.message || err)
+          detail: String(err?.stack || err?.message || err)
         }, 500);
       }
     }
