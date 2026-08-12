@@ -481,7 +481,6 @@ html.badge-detail-route .badge-detail-page { display:grid; }
   .badge-detail-icon { font-size:2.4rem; line-height:1; }
   .badge-detail-name { margin:10px 0 4px; font-size:1.35rem; font-weight:850; }
   .badge-detail-family { color:var(--text-3); font-size:.68rem; letter-spacing:.09em; text-transform:uppercase; }
-  .badge-detail-rarity { display:inline-flex; margin-top:12px; padding:5px 10px; border:1px solid currentColor; border-radius:999px; font-size:.65rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
   .badge-detail-ep { margin-top:14px; font:800 1rem "Space Mono",monospace; color:var(--badge-color); }
   .badge-detail-explanation { margin:20px 0 0; padding-top:16px; border-top:1px dashed var(--border); color:var(--text-2); font-size:.84rem; line-height:1.7; }
 
@@ -892,13 +891,6 @@ html.badge-detail-route .badge-detail-page { display:grid; }
     font-weight:700;
     color:var(--text-3);
     letter-spacing:.01em;
-  }
-  .profile-roll-rarity {
-    color:var(--badge-color);
-    font-size:.58rem;
-    font-weight:800;
-    letter-spacing:.08em;
-    text-transform:uppercase;
   }
   .profile-best-word {
     font-family:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -1496,8 +1488,9 @@ function renderPlayerOverview(summary, isCurrentUser) {
         var main = document.createElement("div");
         main.className = "recent-roll-main";
         var recentTierLabel = tierForEP(roll.ep);
-        main.innerHTML = "<span class='recent-roll-word profile-roll-word' style='color:" + colorForEP(roll.ep) + "'>" + escapeHtml(roll.word) + "</span>" +
-          "<span class='recent-roll-meta'><span class='recent-roll-rarity profile-roll-rarity' style='--badge-color:" + colorForEP(roll.ep) + "'>" + recentTierLabel + "</span><span class='recent-roll-ep profile-roll-ep'>" + Number(roll.ep || 0).toLocaleString() + " EP</span>" + (roll.rank != null ? "<span>Rank #" + roll.rank + "</span>" : "") + "<span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
+        var recentColor = colorForEP(roll.ep);
+        main.innerHTML = "<span class='recent-roll-word profile-roll-word' style='color:" + recentColor + "'>" + escapeHtml(roll.word) + "</span>" +
+          "<span class='recent-roll-meta'><span class='roll-rarity show rarity-" + recentTier + "' style='color:" + recentColor + ";background:color-mix(in srgb, " + recentColor + " 14%, transparent)'><span class='tier-label'>" + recentTierLabel + "</span></span><span class='recent-roll-ep profile-roll-ep'>" + Number(roll.ep || 0).toLocaleString() + " EP</span>" + (roll.rank != null ? "<span>Rank #" + roll.rank + "</span>" : "") + "<span>" + escapeHtml(formatTimestamp(roll.ts)) + "</span></span>";
         item.appendChild(main);
         recentRolls.appendChild(item);
       });
@@ -2590,10 +2583,11 @@ function initializeBadgeDetailPage() {
   document.getElementById("badgeDetailName").textContent = name;
   document.getElementById("badgeDetailFamily").textContent = family + " badge";
   var rarity = document.getElementById("badgeDetailRarity");
-  rarity.textContent = tier;
+  rarity.innerHTML = "<span class='tier-label'>" + tier + "</span>";
   rarity.style.color = color;
   rarity.style.background = "color-mix(in srgb, " + color + " 14%, transparent)";
-  rarity.className = "badge-detail-rarity rarity-" + tier.toLowerCase();
+  rarity.style.marginTop = "12px";
+  rarity.className = "roll-rarity show rarity-" + tier.toLowerCase();
   document.getElementById("badgeDetailEP").textContent = "+" + ep + " EP";
   document.getElementById("badgeDetailExplanation").textContent = desc;
   var card = document.getElementById("badgeDetailCard");
