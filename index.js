@@ -134,6 +134,25 @@ const HTML_PAGE = `<!DOCTYPE html>
   /* ---------- layout ---------- */
   .container { max-width: 420px; margin: 0 auto; padding: 108px 18px 70px; }
 
+  /* ---------- SPA route transitions ---------- */
+  /* The whole page is a single-page app: navigating between Roll / Leaderboard /
+     Account / detail views swaps which section is visible without a hard reload.
+     These classes crossfade the swap so it reads as a smooth app transition
+     instead of a browser page-load flash. */
+  .container { transition: opacity .22s cubic-bezier(.4,0,.2,1), transform .22s cubic-bezier(.4,0,.2,1); }
+  .container.route-leaving { opacity: 0; transform: translateY(7px) scale(.99); pointer-events: none; }
+  .container.route-entering { opacity: 0; transform: translateY(-7px) scale(.99); }
+  @media (prefers-reduced-motion: reduce) {
+    .container, .container.route-leaving, .container.route-entering { transition: none; transform: none; }
+  }
+
+  .header-link { position: relative; padding-bottom: 3px; }
+  .header-link::after {
+    content: ""; position: absolute; left: 0; right: 100%; bottom: -1px; height: 2px;
+    background: var(--accent); border-radius: 2px; transition: right .25s cubic-bezier(.2,.8,.2,1);
+  }
+  .header-link.current::after { right: 0; }
+
   .hero-card {
     background: transparent; border: 0; border-radius: 0;
     padding: 0; position: relative; overflow: visible;
@@ -2347,7 +2366,7 @@ async function renderResult(letters, res, leaderboard) {
     (function (badgeForLink) {
       var openBadge = function () {
         var detailDescription = badgeForLink.desc || "A special pattern discovered in a roll.";
-        window.location.href = "/badge/" + encodeURIComponent(badgeForLink.name) + "?ep=" + encodeURIComponent(badgeForLink.ep) + "&family=" + encodeURIComponent(badgeForLink.family || "badge") + "&desc=" + encodeURIComponent(detailDescription);
+        navigate("/badge/" + encodeURIComponent(badgeForLink.name) + "?ep=" + encodeURIComponent(badgeForLink.ep) + "&family=" + encodeURIComponent(badgeForLink.family || "badge") + "&desc=" + encodeURIComponent(detailDescription));
       };
       li.addEventListener("click", openBadge);
       li.addEventListener("keydown", function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openBadge(); } });
@@ -2404,7 +2423,7 @@ async function renderResult(letters, res, leaderboard) {
       gbtn.textContent = "Go to leaderboard";
       gbtn.onclick = function () {
         try { localStorage.setItem("sixroll_pulse", getName()); } catch (e) {}
-        window.location.href = "/leaderboard";
+        navigate("/leaderboard");
       };
       var supEl = document.getElementById("supporting");
       if (supEl && supEl.parentNode) supEl.parentNode.insertBefore(gbtn, supEl);
@@ -2505,12 +2524,12 @@ function renderLeaderboard(data) {
   }).join("");
   body.querySelectorAll(".lb-word-btn").forEach(function (button) {
     button.addEventListener("click", function () {
-      window.location.href = "/roll/" + encodeURIComponent(button.dataset.word) + "?name=" + encodeURIComponent(button.dataset.player) + "&ep=" + encodeURIComponent(button.dataset.ep);
+      navigate("/roll/" + encodeURIComponent(button.dataset.word) + "?name=" + encodeURIComponent(button.dataset.player) + "&ep=" + encodeURIComponent(button.dataset.ep));
     });
   });
   body.querySelectorAll(".lb-name-btn").forEach(function (button) {
     button.addEventListener("click", function () {
-      window.location.href = "/account/" + encodeURIComponent(button.dataset.player);
+      navigate("/account/" + encodeURIComponent(button.dataset.player));
     });
   });
 
@@ -2591,7 +2610,7 @@ function showRollDetail(word, player, ep) {
     item.innerHTML = "<div><span class='badge-name'><span class='badge-icon' aria-hidden='true'>" + (BADGE_ICONS[badge.family] || "✨") + "</span>" + badge.name + "</span><span class='badge-desc'>" + badge.desc + "</span>" + slots + "</div><span class='badge-ep'>+" + badge.ep + " EP</span>";
     item.tabIndex = 0;
     item.setAttribute("role", "button");
-    var openBadge = function () { window.location.href = "/badge/" + encodeURIComponent(badge.name) + "?ep=" + encodeURIComponent(badge.ep) + "&family=" + encodeURIComponent(badge.family || "badge") + "&desc=" + encodeURIComponent(badge.desc || ""); };
+    var openBadge = function () { navigate("/badge/" + encodeURIComponent(badge.name) + "?ep=" + encodeURIComponent(badge.ep) + "&family=" + encodeURIComponent(badge.family || "badge") + "&desc=" + encodeURIComponent(badge.desc || "")); };
     item.addEventListener("click", openBadge);
     item.addEventListener("keydown", function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openBadge(); } });
     list.appendChild(item);
@@ -2926,9 +2945,123 @@ document.addEventListener("click", function (event) {
   }
 });
 
+/* ================= client-side routing (SPA) =================
+ * The worker serves the exact same HTML shell for "/", "/leaderboard",
+ * "/account", "/account/:name", "/roll/:word" and "/badge/:name" — the
+ * client picks which section to show based on the URL. That means once the
+ * page is loaded we never need a real browser navigation to move between
+ * these views: we can swap sections in place and crossfade the change so it
+ * feels like an app rather than a stack of separate web pages. */
+var ROUTE_CLASSES = ["leaderboard-page", "account-page", "detail-page", "badge-detail-route"];
+var navBusy = false;
+// Only /leaderboard, /account(/:name) and /roll/:word set document.title themselves;
+// the Roll (home) route relies on the title the page loaded with, so remember it here
+// and restore it before each route swap in case a previous route changed it.
+var DEFAULT_TITLE = document.title;
+
+function clearRouteState() {
+  ROUTE_CLASSES.forEach(function (cls) { document.documentElement.classList.remove(cls); });
+  var detail = document.getElementById("rollDetail");
+  if (detail) detail.classList.remove("show");
+  var badgePage = document.getElementById("badgeDetailPage");
+  if (badgePage) badgePage.hidden = true;
+  document.title = DEFAULT_TITLE;
+}
+
+function updateNavHighlight() {
+  var path = window.location.pathname;
+  document.querySelectorAll(".header-link").forEach(function (link) {
+    var href = link.getAttribute("href");
+    var isCurrent = href === path ||
+      (href === "/account" && path.indexOf("/account") === 0) ||
+      (href === "/leaderboard" && (path === "/leaderboard" || path.indexOf("/roll/") === 0));
+    link.classList.toggle("current", isCurrent);
+  });
+}
+
+// Re-runs the same "which view am I on" logic the initial page load uses,
+// but against whatever the URL is right now — this is what lets a nav click
+// or a browser back/forward re-render in place instead of reloading.
+function applyRoute() {
+  clearRouteState();
+  updateAuthUI();
+  if (initializeBadgeDetailPage()) {
+    updateNavHighlight();
+    return Promise.resolve();
+  }
+  return initializeDetailPage().then(function (isDetailPage) {
+    var accountWork = Promise.resolve();
+    if (window.location.pathname.startsWith("/account")) {
+      var explicitName = getAccountPathName();
+      if (authState.user || explicitName) {
+        accountWork = initializeAccountOverview(explicitName).catch(function () {});
+      } else {
+        var overviewEl = document.getElementById("accountOverview");
+        if (overviewEl) overviewEl.hidden = true;
+      }
+    }
+    return accountWork.then(function () {
+      updateNavHighlight();
+      if (!isDetailPage) return loadLeaderboard();
+    });
+  });
+}
+
+// Fades the current view out, swaps the route in place while it's invisible
+// (so any layout shift between views is never seen), then fades the new
+// view in. opts.isPop is set for browser back/forward, where the URL has
+// already changed and we must not push a second history entry.
+function navigate(path, opts) {
+  opts = opts || {};
+  var current = window.location.pathname + window.location.search;
+  if (!opts.isPop && path === current) return;
+  if (navBusy) return;
+  navBusy = true;
+  var main = document.querySelector("main.container");
+  if (main) main.classList.add("route-leaving");
+  setTimeout(function () {
+    if (!opts.isPop) window.history.pushState({}, "", path);
+    window.scrollTo(0, 0);
+    applyRoute().catch(function () {}).then(function () {
+      if (main) {
+        main.classList.remove("route-leaving");
+        main.classList.add("route-entering");
+        void main.offsetWidth; // force a reflow so the entering state paints before we transition out of it
+        requestAnimationFrame(function () {
+          main.classList.remove("route-entering");
+        });
+      }
+      setTimeout(function () { navBusy = false; }, 240);
+    });
+  }, 180);
+}
+
+window.addEventListener("popstate", function () {
+  navigate(window.location.pathname + window.location.search, { isPop: true });
+});
+
+// The three header links (Leaderboard / Roll / Account) are the only plain
+// <a> navigation in the app; intercept them so they go through the SPA
+// router instead of doing a full page load.
+document.addEventListener("click", function (event) {
+  var link = event.target && event.target.closest(".header-link");
+  if (!link) return;
+  event.preventDefault();
+  navigate(link.getAttribute("href"));
+});
+
+var detailBackBtn = document.getElementById("detailBack");
+if (detailBackBtn) {
+  detailBackBtn.addEventListener("click", function () { navigate("/leaderboard"); });
+}
+
 refreshAuthState().then(function () {
-  if (initializeBadgeDetailPage()) return;
+  if (initializeBadgeDetailPage()) {
+    updateNavHighlight();
+    return;
+  }
   initializeDetailPage().then(function (isDetailPage) {
+    updateNavHighlight();
     if (!isDetailPage) loadLeaderboard();
   });
 });
