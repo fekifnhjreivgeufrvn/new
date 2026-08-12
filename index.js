@@ -20,45 +20,23 @@ const HTML_PAGE = `<!DOCTYPE html>
 })();
 
   // Admin manual-score debug tool.
-  (function () {
-    const btn = document.getElementById("manualScoreBtn");
-    const form = document.getElementById("manualScoreForm");
-    const submit = document.getElementById("manualScoreSubmit");
-    if (!btn || !form || !submit) return;
-    btn.addEventListener("click", function () {
-      form.hidden = !form.hidden;
-      form.style.display = form.hidden ? "none" : "grid";
+(function () {
+  function initManualScoreDebug() {
+    var btn=document.getElementById('manualScoreBtn'), form=document.getElementById('manualScoreForm'), submit=document.getElementById('manualScoreSubmit');
+    if(!btn||!form||!submit||btn.dataset.bound==='1') return;
+    btn.dataset.bound='1';
+    btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();form.hidden=!form.hidden;form.style.display=form.hidden?'none':'grid';});
+    submit.addEventListener('click',async function(e){
+      e.preventDefault();e.stopPropagation();
+      var name=document.getElementById('manualScoreName').value.trim(), word=document.getElementById('manualScoreWord').value.trim().toUpperCase(), ep=Number(document.getElementById('manualScoreEP').value), status=document.getElementById('manualScoreStatus');
+      if(!name||!/^[A-Z]{6}$/.test(word)||!Number.isFinite(ep)||ep<0){if(status)status.textContent='Enter a name, 6-letter word and valid EP.';return;}
+      submit.disabled=true;if(status)status.textContent='Saving...';
+      try{var r=await fetch('/api/admin/manual-score',{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',cache:'no-store',body:JSON.stringify({name:name,word:word,ep:ep})});var d={};try{d=await r.json()}catch(_){} if(!r.ok)throw new Error(d.error||('Request failed ('+r.status+')')); if(typeof leaderboardCache!=='undefined')leaderboardCache=d.leaderboard||[]; if(typeof renderLeaderboard==='function')renderLeaderboard(d.leaderboard||[]); if(status)status.textContent='Score added - leaderboard rebuilt.'; if(typeof showToast==='function')showToast('Manual score added');}catch(e){if(status)status.textContent='Failed: '+(e.message||'request error');}finally{submit.disabled=false;}
     });
-    submit.addEventListener("click", async function () {
-      const name = document.getElementById("manualScoreName").value.trim();
-      const word = document.getElementById("manualScoreWord").value.trim().toUpperCase();
-      const ep = Number(document.getElementById("manualScoreEP").value);
-      if (!name || !/^[A-Z]{6}$/.test(word) || !Number.isFinite(ep) || ep < 0) {
-        showToast("Enter a name, 6-letter word and valid EP");
-        return;
-      }
-      submit.disabled = true;
-      try {
-        const r = await fetch("/api/admin/manual-score", {
-          method: "POST",
-          headers: {"content-type":"application/json"},
-          credentials: "same-origin",
-          cache: "no-store",
-          body: JSON.stringify({name, word, ep})
-        });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || "Failed");
-        if (typeof leaderboardCache !== "undefined") leaderboardCache = data.leaderboard || [];
-        if (typeof renderLeaderboard === "function") renderLeaderboard(data.leaderboard || []);
-        showToast("Manual score added");
-      } catch (e) {
-        showToast(e.message || "Failed to add score");
-      } finally {
-        submit.disabled = false;
-      }
-    });
-  })();
-
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initManualScoreDebug);else initManualScoreDebug();
+  new MutationObserver(initManualScoreDebug).observe(document.documentElement,{childList:true,subtree:true});
+})();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1275,7 +1253,7 @@ html.badge-detail-route .badge-detail-page { display:grid; }
           <input id="manualScoreName" maxlength="20" placeholder="Name">
           <input id="manualScoreWord" maxlength="6" placeholder="ABCDEF">
           <input id="manualScoreEP" type="number" min="0" step="1" placeholder="EP">
-          <button class="admin-btn" id="manualScoreSubmit" type="button">Add</button>
+          <button class="admin-btn" id="manualScoreSubmit" type="button">Add</button><span id="manualScoreStatus" style="grid-column:1/-1;min-height:1.2em"></span>
         </div>
         <button class="admin-btn" id="recalcBtn" type="button">Recalculate all scores</button>
       </div>
