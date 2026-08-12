@@ -429,7 +429,7 @@ const HTML_PAGE = `<!DOCTYPE html>
   /* Legendary - shimmering multi-layer glow */
   .roll-rarity.rarity-legendary {
     box-shadow: 0 0 24px 0px currentColor, 0 0 48px -6px currentColor, 0 0 72px -12px currentColor, inset 0 0 20px -12px currentColor;
-    animation: legendaryPulse 1.4s cubic-bezier(.34, 1.56, .64, 1) infinite, legendaryShimmer 2.2s ease-in-out infinite, legendaryRotate 6s linear infinite;
+    animation: legendaryPulse 2.4s ease-in-out infinite, legendaryShimmer 2.2s ease-in-out infinite;
     background-image: linear-gradient(120deg, color-mix(in srgb, currentColor 16%, transparent) 0%, color-mix(in srgb, currentColor 40%, transparent) 50%, color-mix(in srgb, currentColor 16%, transparent) 100%);
     background-size: 220% 100%;
     filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 30%, transparent)) brightness(1.1);
@@ -441,14 +441,13 @@ const HTML_PAGE = `<!DOCTYPE html>
     border-radius: 999px;
     pointer-events: none;
     background: conic-gradient(from 0deg, transparent, color-mix(in srgb, currentColor 25%, transparent), transparent);
-    animation: coronalRotate 3s linear infinite;
     z-index: -1;
   }
   
   /* Mythic - intense multi-layer effect */
   .roll-rarity.rarity-mythic, .roll-rarity.rarity-divine, .roll-rarity.rarity-cosmic {
     box-shadow: 0 0 28px 2px currentColor, 0 0 56px -4px currentColor, 0 0 88px -10px currentColor, inset 0 0 24px -14px currentColor;
-    animation: mythicPulse 1s cubic-bezier(.34, 1.56, .64, 1) infinite, mythicShimmer 1.6s ease-in-out infinite, mythicRotate 4s linear infinite;
+    animation: mythicPulse 2.2s ease-in-out infinite, mythicShimmer 1.8s ease-in-out infinite;
     background-image: linear-gradient(120deg, color-mix(in srgb, currentColor 22%, transparent) 0%, color-mix(in srgb, currentColor 50%, transparent) 50%, color-mix(in srgb, currentColor 22%, transparent) 100%);
     background-size: 200% 100%;
     filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 40%, transparent)) drop-shadow(0 0 12px color-mix(in srgb, currentColor 20%, transparent)) brightness(1.2) saturate(1.3);
@@ -469,23 +468,19 @@ const HTML_PAGE = `<!DOCTYPE html>
     border-radius: 999px;
     pointer-events: none;
     background: conic-gradient(from 0deg, color-mix(in srgb, currentColor 30%, transparent), transparent, color-mix(in srgb, currentColor 20%, transparent));
-    animation: coronalRotate 2s linear infinite;
     z-index: -1;
   }
   
   /* Animation sequences */
   @keyframes rareGlow { 0%, 100% { box-shadow: 0 0 16px -2px currentColor, 0 0 28px -8px currentColor, inset 0 0 12px -8px currentColor; } 50% { box-shadow: 0 0 22px 0px currentColor, 0 0 40px -6px currentColor, inset 0 0 16px -10px currentColor; } }
-  @keyframes epicPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 20%, transparent)) brightness(1); } 50% { transform: scale(1.02); filter: drop-shadow(0 0 8px color-mix(in srgb, currentColor 35%, transparent)) brightness(1.15); } }
+  @keyframes epicPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 20%, transparent)) brightness(1); } 50% { transform: scale(1.01); filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 30%, transparent)) brightness(1.08); } }
   @keyframes epicGradientShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
   @keyframes particleFloat { 0% { --particle-x: 20%; --particle-y: 30%; opacity: 0.4; } 50% { --particle-x: 80%; --particle-y: 70%; opacity: 0.7; } 100% { --particle-x: 20%; --particle-y: 30%; opacity: 0.4; } }
-  @keyframes legendaryPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 30%, transparent)) brightness(1.1); } 50% { transform: scale(1.03); filter: drop-shadow(0 0 12px color-mix(in srgb, currentColor 50%, transparent)) brightness(1.25); } }
+  @keyframes legendaryPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 30%, transparent)) brightness(1.1); } 50% { transform: scale(1.01); filter: drop-shadow(0 0 8px color-mix(in srgb, currentColor 40%, transparent)) brightness(1.15); } }
   @keyframes legendaryShimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-  @keyframes legendaryRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @keyframes mythicPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 40%, transparent)) drop-shadow(0 0 12px color-mix(in srgb, currentColor 20%, transparent)) brightness(1.2) saturate(1.3); } 50% { transform: scale(1.04); filter: drop-shadow(0 0 16px color-mix(in srgb, currentColor 60%, transparent)) drop-shadow(0 0 28px color-mix(in srgb, currentColor 35%, transparent)) brightness(1.4) saturate(1.5); } }
+  @keyframes mythicPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 40%, transparent)) drop-shadow(0 0 12px color-mix(in srgb, currentColor 20%, transparent)) brightness(1.2) saturate(1.3); } 50% { transform: scale(1.01); filter: drop-shadow(0 0 10px color-mix(in srgb, currentColor 50%, transparent)) drop-shadow(0 0 18px color-mix(in srgb, currentColor 30%, transparent)) brightness(1.3) saturate(1.4); } }
   @keyframes mythicShimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-  @keyframes mythicRotate { from { transform: rotate(0deg) scale(1); } to { transform: rotate(360deg) scale(1); } }
   @keyframes mythicParticle { 0% { transform: translateY(0) scale(0.8); opacity: 0.3; } 50% { transform: translateY(-4px) scale(1); opacity: 0.6; } 100% { transform: translateY(0) scale(0.8); opacity: 0.3; } }
-  @keyframes coronalRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @keyframes tierPulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.22); } }
   @keyframes tierShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
   /* compact version for tight spaces like leaderboard rows */
@@ -659,7 +654,7 @@ html.badge-detail-route .badge-detail-page { display:grid; }
   .lb-medal.gold { background: linear-gradient(135deg, #ffd873, #f59e0b); box-shadow: 0 0 9px -2px #f59e0b; }
   .lb-medal.silver { background: linear-gradient(135deg, #e4e4f2, #a78bff); box-shadow: 0 0 8px -2px #a78bff; }
   .lb-medal.bronze { background: linear-gradient(135deg, #e0a878, #8b5cf6); box-shadow: 0 0 8px -2px #8b5cf6; }
-  .lb-tier { font-size: .63rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 3px 7px; border-radius: 3px; background: transparent; color: currentColor; border: 1px solid currentColor; }
+  .lb-tier { font-size: .63rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 5px 8px; border-radius: 6px; background: color-mix(in srgb, currentColor 10%, rgba(255,255,255,.04)); color: currentColor; border: 1px solid currentColor; display: flex; align-items: center; gap: 4px; }
   .lb-word { font-family: "Space Mono", monospace; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lb-row.rarity-legendary .lb-word-btn, .lb-row.rarity-mythic .lb-word-btn, .lb-row.rarity-divine .lb-word-btn, .lb-row.rarity-cosmic .lb-word-btn {
     background-image: linear-gradient(100deg, var(--tier-color), color-mix(in srgb, var(--tier-color) 40%, white), var(--tier-color));
