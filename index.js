@@ -18,6 +18,47 @@ const HTML_PAGE = `<!DOCTYPE html>
     document.documentElement.setAttribute("data-theme", theme);
   } catch (e) {}
 })();
+
+  // Admin manual-score debug tool.
+  (function () {
+    const btn = document.getElementById("manualScoreBtn");
+    const form = document.getElementById("manualScoreForm");
+    const submit = document.getElementById("manualScoreSubmit");
+    if (!btn || !form || !submit) return;
+    btn.addEventListener("click", function () {
+      form.hidden = !form.hidden;
+      form.style.display = form.hidden ? "none" : "grid";
+    });
+    submit.addEventListener("click", async function () {
+      const name = document.getElementById("manualScoreName").value.trim();
+      const word = document.getElementById("manualScoreWord").value.trim().toUpperCase();
+      const ep = Number(document.getElementById("manualScoreEP").value);
+      if (!name || !/^[A-Z]{6}$/.test(word) || !Number.isFinite(ep) || ep < 0) {
+        showToast("Enter a name, 6-letter word and valid EP");
+        return;
+      }
+      submit.disabled = true;
+      try {
+        const r = await fetch("/api/admin/manual-score", {
+          method: "POST",
+          headers: {"content-type":"application/json"},
+          credentials: "same-origin",
+          cache: "no-store",
+          body: JSON.stringify({name, word, ep})
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "Failed");
+        if (typeof leaderboardCache !== "undefined") leaderboardCache = data.leaderboard || [];
+        if (typeof renderLeaderboard === "function") renderLeaderboard(data.leaderboard || []);
+        showToast("Manual score added");
+      } catch (e) {
+        showToast(e.message || "Failed to add score");
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  })();
+
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1229,6 +1270,13 @@ html.badge-detail-route .badge-detail-page { display:grid; }
       </div>
       <p class="admin-note">Enabled via secret code. Actions here modify the live leaderboard.</p>
       <div class="admin-actions">
+        <button class="admin-btn" id="manualScoreBtn" type="button">Add manual score</button>
+        <div id="manualScoreForm" hidden style="margin-top:10px;display:grid;gap:8px;grid-template-columns:1fr 1fr 1fr auto;">
+          <input id="manualScoreName" maxlength="20" placeholder="Name">
+          <input id="manualScoreWord" maxlength="6" placeholder="ABCDEF">
+          <input id="manualScoreEP" type="number" min="0" step="1" placeholder="EP">
+          <button class="admin-btn" id="manualScoreSubmit" type="button">Add</button>
+        </div>
         <button class="admin-btn" id="recalcBtn" type="button">Recalculate all scores</button>
       </div>
       <div class="admin-log" id="adminLog"></div>
@@ -3181,6 +3229,68 @@ export default {
           totalEP: profile.totalEP,
           bestRoll: profile.bestRoll
         }});
+    }
+
+    // --- Admin debug: manually inject a score into the live profile/leaderboard. ---
+    if (url.pathname === "/api/admin/manual-score" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+
+      const admin = await requireAdmin(request, env);
+      if (!admin) return json({ error: "Unauthorized" }, 401);
+
+      const name = String(body && body.name || "").trim().slice(0, 20);
+      const word = String(body && body.word || "").trim().toUpperCase().slice(0, 6);
+      const ep = Number(body && body.ep);
+      if (!name || !/^[A-Z]{6}$/.test(word) || !Number.isFinite(ep) || ep < 0) {
+        return json({ error: "name, six-letter word and non-negative ep are required" }, 400);
+      }
+
+      const ts = Date.now();
+      const record = { word, name, ep, ts };
+
+      // Keep the legacy all-roll store in sync for admin/history compatibility.
+      const rolls = await getRolls(env);
+      rolls.push(record);
+      rolls.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
+      await env.PLAYERS.put(KV_KEY, JSON.stringify(rolls.slice(0, MAX_ROLLS)));
+
+      // Update the player's aggregate if a matching account/profile exists.
+      const users = await getAuthUsers(env);
+      const target = users.find(u =>
+        String(u.username || "").toLowerCase() === name.toLowerCase() ||
+        String(u.displayName || "").toLowerCase() === name.toLowerCase() ||
+        String(u.email || "").toLowerCase() === name.toLowerCase()
+      );
+      if (target) {
+        const username = String(target.username || target.email || "").trim().toLowerCase();
+        if (username) {
+          const existing = await getPlayerProfile(env, username, { seedFromLegacy: true, displayName: target.displayName || name }) || {
+            username,
+            displayName: target.displayName || name,
+            rollCount: 0,
+            totalEP: 0,
+            bestRoll: null,
+            recentRolls: []
+          };
+          existing.rollCount = (Number(existing.rollCount) || 0) + 1;
+          existing.totalEP = (Number(existing.totalEP) || 0) + ep;
+          if (!existing.bestRoll || ep > (Number(existing.bestRoll.ep) || 0)) existing.bestRoll = record;
+          existing.recentRolls = [record].concat(Array.isArray(existing.recentRolls) ? existing.recentRolls : []).slice(0, 20);
+          await env.PLAYERS.put(PROFILE_PREFIX + username, JSON.stringify(existing));
+        }
+      }
+
+      // Rebuild authoritative top 20 from stored rolls.
+      const top = rolls.slice(0, MAX_LEADERBOARD);
+      const cutoffEp = top.length ? Number(top[top.length - 1].ep) || 0 : null;
+      await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({
+        count: top.length,
+        cutoffEp,
+        leaderboard: top
+      }));
+
+      return json({ ok: true, record, leaderboard: top });
     }
 
     if (url.pathname === "/api/reset" && request.method === "POST") {
