@@ -3210,65 +3210,58 @@ export default {
     }
 
     // --- Admin debug: manually inject a score into the live profile/leaderboard. ---
-    if (url.pathname === "/api/admin/manual-score" && request.method === "POST") {
-      let body;
-      try { body = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+        if (url.pathname === "/api/admin/manual-score" && request.method === "POST") {
+      try {
+        let body;
+        try { body = await request.json(); } catch (_) { return json({ error: "Invalid JSON" }, 400); }
 
-      const admin = await requireAdmin(request, env);
-      if (!admin) return json({ error: "Unauthorized" }, 401);
+        // Use the same admin guard as the existing admin endpoints.
+        const admin = await requireAdmin(request, env);
+        if (!admin) return json({ error: "Unauthorized" }, 401);
 
-      const name = String(body && body.name || "").trim().slice(0, 20);
-      const word = String(body && body.word || "").trim().toUpperCase().slice(0, 6);
-      const ep = Number(body && body.ep);
-      if (!name || !/^[A-Z]{6}$/.test(word) || !Number.isFinite(ep) || ep < 0) {
-        return json({ error: "name, six-letter word and non-negative ep are required" }, 400);
+        const name = String(body?.name || "").trim().slice(0, 32);
+        const word = String(body?.word || "").trim().toUpperCase();
+        const ep = Number(body?.ep);
+
+        if (!name) return json({ error: "Name is required" }, 400);
+        if (!/^[A-Z]{6}$/.test(word)) return json({ error: "Word must be exactly 6 letters" }, 400);
+        if (!Number.isFinite(ep) || ep < 0) return json({ error: "EP must be a non-negative number" }, 400);
+
+        const record = {
+          word,
+          name,
+          ep,
+          ts: Date.now()
+        };
+
+        // Read the existing legacy roll store using the project's own helper.
+        const rolls = await getRolls(env);
+        rolls.push(record);
+        rolls.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
+
+        // Preserve the complete legacy roll store if the project already does so;
+        // otherwise use the existing MAX_ROLLS limit.
+        const storedRolls = typeof MAX_ROLLS === "number" ? rolls.slice(0, MAX_ROLLS) : rolls;
+        await env.PLAYERS.put(KV_KEY, JSON.stringify(storedRolls));
+
+        // Always rebuild the authoritative top-20 index from what was stored.
+        const top = storedRolls.slice(0, 20);
+        const cutoffEp = top.length ? Number(top[top.length - 1].ep) || 0 : null;
+        await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({
+          count: top.length,
+          cutoffEp,
+          leaderboard: top,
+          updatedAt: Date.now()
+        }));
+
+        return json({ ok: true, record, leaderboard: top });
+      } catch (err) {
+        console.error("manual score error", err);
+        return json({
+          error: "Manual score failed",
+          detail: String(err?.message || err)
+        }, 500);
       }
-
-      const ts = Date.now();
-      const record = { word, name, ep, ts };
-
-      // Keep the legacy all-roll store in sync for admin/history compatibility.
-      const rolls = await getRolls(env);
-      rolls.push(record);
-      rolls.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
-      await env.PLAYERS.put(KV_KEY, JSON.stringify(rolls.slice(0, MAX_ROLLS)));
-
-      // Update the player's aggregate if a matching account/profile exists.
-      const users = await getAuthUsers(env);
-      const target = users.find(u =>
-        String(u.username || "").toLowerCase() === name.toLowerCase() ||
-        String(u.displayName || "").toLowerCase() === name.toLowerCase() ||
-        String(u.email || "").toLowerCase() === name.toLowerCase()
-      );
-      if (target) {
-        const username = String(target.username || target.email || "").trim().toLowerCase();
-        if (username) {
-          const existing = await getPlayerProfile(env, username, { seedFromLegacy: true, displayName: target.displayName || name }) || {
-            username,
-            displayName: target.displayName || name,
-            rollCount: 0,
-            totalEP: 0,
-            bestRoll: null,
-            recentRolls: []
-          };
-          existing.rollCount = (Number(existing.rollCount) || 0) + 1;
-          existing.totalEP = (Number(existing.totalEP) || 0) + ep;
-          if (!existing.bestRoll || ep > (Number(existing.bestRoll.ep) || 0)) existing.bestRoll = record;
-          existing.recentRolls = [record].concat(Array.isArray(existing.recentRolls) ? existing.recentRolls : []).slice(0, 20);
-          await env.PLAYERS.put(PROFILE_PREFIX + username, JSON.stringify(existing));
-        }
-      }
-
-      // Rebuild authoritative top 20 from stored rolls.
-      const top = rolls.slice(0, MAX_LEADERBOARD);
-      const cutoffEp = top.length ? Number(top[top.length - 1].ep) || 0 : null;
-      await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({
-        count: top.length,
-        cutoffEp,
-        leaderboard: top
-      }));
-
-      return json({ ok: true, record, leaderboard: top });
     }
 
     if (url.pathname === "/api/reset" && request.method === "POST") {
