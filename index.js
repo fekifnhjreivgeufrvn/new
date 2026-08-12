@@ -3471,6 +3471,14 @@ async function getSessionUser(request, env) {
   return session ? session.user : null;
 }
 
+async function requireAdmin(request, env) {
+  const user = await getSessionUser(request, env);
+  if (!user) return null;
+  const users = await getAuthUsers(env);
+  const admin = users.find((u) => (u.email === user.email || u.username === user.username) && u.admin === true);
+  return admin ? user : null;
+}
+
 function createSessionToken(email) {
   return `${email}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
 }
