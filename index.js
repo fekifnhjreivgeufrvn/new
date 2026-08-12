@@ -569,9 +569,11 @@ html.badge-detail-route .badge-detail-page { display:grid; }
   html.leaderboard-page .container { max-width: 720px; padding-top: 34px; }
   html.leaderboard-page .leaderboard { margin-top: 0; }
   html:not(.leaderboard-page):not(.detail-page) .leaderboard { display: none; }
+  html.leaderboard-page .leaderboard:not(.ready) { display: none; }
   html.account-page .hero-card, html.account-page .result-card, html.account-page .leaderboard, html.account-page .detail-card, html.account-page .admin-panel { display: none; }
   html.account-page .container { max-width: 980px; padding-top: 72px; }
   html:not(.account-page) .account-page-wrap { display: none; }
+  html.account-page .account-page-wrap:not(.ready) { display: none; }
 
   /* ---------- account page ---------- */
   .account-page-head { text-align: center; margin: 0 0 22px; }
@@ -1474,6 +1476,8 @@ async function refreshAuthState() {
       var overviewEl = document.getElementById("accountOverview");
       if (overviewEl) overviewEl.hidden = true;
     }
+    var pageWrap = document.getElementById("accountPageWrap");
+    if (pageWrap) pageWrap.classList.add("ready");
   }
 }
 
@@ -2545,6 +2549,8 @@ function renderLeaderboard(data) {
       })(pulseName.toLowerCase());
     }
   } catch (e) {}
+  var leaderboardEl = document.querySelector(".leaderboard");
+  if (leaderboardEl) leaderboardEl.classList.add("ready");
 }
 
 async function loadLeaderboard() {
