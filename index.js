@@ -511,6 +511,9 @@ const HTML_PAGE = `<!DOCTYPE html>
   @keyframes badgeGlow { 0%,100% { box-shadow: 0 0 18px -8px var(--badge-color); } 50% { box-shadow: 0 0 26px 1px var(--badge-color); } }
   @keyframes badgeGradient { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
   @keyframes badgeIn { to { opacity: 1; transform: translateX(0); } }
+  .badge-item.bonus-item { border-left-style: dashed; cursor: default; }
+  .badge-item.bonus-item:hover { transform: none; filter: none; }
+  .badge-item.bonus-item .badge-desc { font-style: italic; }
   .badge-name { font-weight: 700; font-size: .9rem; }
   .badge-icon { display: inline-block; width: 1.35em; margin-right: 4px; }
   .badge-desc { display: block; color: var(--text-3); font-size: .76rem; margin-top: 2px; }
@@ -2265,6 +2268,74 @@ function rankForEP(ep, leaderboard) {
   return rank <= 20 ? rank : null;
 }
 
+// Layout bonuses: small stackable multipliers layered on top of specific badges, based on
+// WHERE in the roll a qualifying pattern sits rather than just whether it exists. Two rolls
+// that earn the same badge (e.g. "Pair" or "Double Trouble") can pay out different EP if one
+// arrangement is a cooler/rarer layout than the other -- e.g. DFFJJK's two adjacent pairs
+// forming one stacked block is a flashier layout than FDFJKK's split-apart pair, even though
+// both trigger "Double Trouble". Kept deliberately small (8-30%) so it adds texture and fills
+// in the gaps between the leaderboard's big jackpot plateaus, instead of becoming a jackpot
+// of its own.
+function computeLayoutBonuses(letters, badges) {
+  var bonuses = [];
+  function addBonus(sourceBadge, label, pct, positions) {
+    var ep = Math.max(1, Math.round(sourceBadge.ep * pct));
+    bonuses.push({ label: label, pct: pct, ep: ep, sourceBadge: sourceBadge.name, positions: positions || null });
+  }
+
+  // ---- Repeat family (Pair / Triple / Quadruple / Quintuple): where does the block sit? ----
+  var repeatBadge = null;
+  for (var i = 0; i < badges.length; i++) {
+    if (badges[i].family === "repeat" && badges[i].name !== "Sextuple") { repeatBadge = badges[i]; break; }
+  }
+  if (repeatBadge && repeatBadge.positions && repeatBadge.positions.length >= 2) {
+    var rp = repeatBadge.positions.slice().sort(function (a, b) { return a - b; });
+    var span = rp[rp.length - 1] - rp[0] + 1;
+    var isBlock = span === rp.length; // the repeated letters sit in one unbroken run
+    if (isBlock) {
+      var touchesStart = rp[0] === 0, touchesEnd = rp[rp.length - 1] === letters.length - 1;
+      if (touchesStart && touchesEnd) addBonus(repeatBadge, "Full Lock", 0.22, rp);
+      else if (!touchesStart && !touchesEnd) addBonus(repeatBadge, "Dead Center", 0.18, rp);
+      else addBonus(repeatBadge, "Edge Lock", 0.10, rp);
+    }
+  }
+
+  // ---- Double Trouble (two separate pairs): how are the two pairs arranged relative to each other? ----
+  var doubleTrouble = null;
+  for (var j = 0; j < badges.length; j++) if (badges[j].name === "Double Trouble") { doubleTrouble = badges[j]; break; }
+  if (doubleTrouble) {
+    var counts = {};
+    for (var k = 0; k < letters.length; k++) counts[letters[k]] = (counts[letters[k]] || 0) + 1;
+    var pairLetters = Object.keys(counts).filter(function (l) { return counts[l] === 2; });
+    if (pairLetters.length === 2) {
+      var pos = pairLetters.map(function (l) {
+        var p = [];
+        for (var m = 0; m < letters.length; m++) if (letters[m] === l) p.push(m);
+        return p;
+      }).sort(function (a, b) { return a[0] - b[0]; });
+      var p1 = pos[0], p2 = pos[1];
+      var n = letters.length;
+      var mirrored = (n - 1 - p1[0] === p2[1]) && (n - 1 - p1[1] === p2[0]);
+      var block = (p1[1] + 1 === p2[0]) || (p2[1] + 1 === p1[0]);
+      if (mirrored) addBonus(doubleTrouble, "Mirrored Twins", 0.30, p1.concat(p2));
+      else if (block) addBonus(doubleTrouble, "Twin Block", 0.20, p1.concat(p2));
+    }
+  }
+
+  // ---- Sequence runs (Mini/Short/Long Run): does the run touch an edge, or sit interior? ----
+  var runBadge = null;
+  for (var q = 0; q < badges.length; q++) {
+    if (badges[q].family === "sequence" && badges[q].name !== "Full Run") { runBadge = badges[q]; break; }
+  }
+  if (runBadge && runBadge.positions && runBadge.positions.length) {
+    var rs = Math.min.apply(null, runBadge.positions), re = Math.max.apply(null, runBadge.positions);
+    if (rs > 0 && re < letters.length - 1) addBonus(runBadge, "Interior Run", 0.15, runBadge.positions);
+    else addBonus(runBadge, "Edge Run", 0.08, runBadge.positions);
+  }
+
+  return bonuses;
+}
+
 function computeRoll(letters) {
   var seq = letters.join("");
   var badges = [];
@@ -2422,6 +2493,11 @@ function computeRoll(letters) {
   applyProbabilityEP(badges);
   for (var b = 0; b < badges.length; b++) totalEP += badges[b].ep;
 
+  var layoutBonuses = computeLayoutBonuses(letters, badges);
+  var layoutBonusEP = 0;
+  for (var lb = 0; lb < layoutBonuses.length; lb++) layoutBonusEP += layoutBonuses[lb].ep;
+  totalEP += layoutBonusEP;
+
   var tier = "Trash";
   if (totalEP >= 80000000) tier = "Cosmic";
   else if (totalEP >= 20000000) tier = "Divine";
@@ -2432,7 +2508,7 @@ function computeRoll(letters) {
   else if (totalEP >= 2000) tier = "Uncommon";
   else if (totalEP >= 300) tier = "Common";
 
-  return { badges: badges, totalEP: totalEP, tier: tier, supporting: supporting, primaryWord: primaryWord };
+  return { badges: badges, totalEP: totalEP, tier: tier, supporting: supporting, primaryWord: primaryWord, layoutBonuses: layoutBonuses, layoutBonusEP: layoutBonusEP };
 }
 
 function pickHighlightBadge(badges) {
@@ -2820,6 +2896,27 @@ async function renderResult(letters, res, leaderboard) {
     await new Promise(function (resolve) { setTimeout(resolve, 420 + i * 160); });
   }
 
+  // Layout bonus lands last, as its own reveal beat, after every named badge has already
+  // landed and the running total has settled -- "the aura tax" on top of the badge list.
+  if (res.layoutBonuses && res.layoutBonuses.length && res.layoutBonusEP) {
+    await new Promise(function (resolve) { setTimeout(resolve, 280); });
+    var lbLi = document.createElement("li");
+    var lbTierEP = runningEP + res.layoutBonusEP;
+    lbLi.className = "badge-item bonus-item rarity-" + tierForEP(lbTierEP).toLowerCase();
+    lbLi.style.setProperty("--badge-color", TIER_COLORS.Legendary);
+    lbLi.style.setProperty("--badge-delay", "0ms");
+    var lbLabels = res.layoutBonuses.map(function (lb) { return lb.label + " +" + lb.ep; }).join(" · ");
+    lbLi.innerHTML = "<div><span class='badge-name'><span class='badge-icon' aria-hidden='true'>✨</span>Layout Bonus</span>" +
+      "<span class='badge-desc'>" + lbLabels + "</span></div>" +
+      "<span class='badge-ep'>+" + res.layoutBonusEP + " EP</span>";
+    list.insertBefore(lbLi, list.firstChild);
+    runningEP += res.layoutBonusEP;
+    panel.style.setProperty("--tier-color", TIER_COLORS[tierForEP(runningEP)] || TIER_COLORS.Trash);
+    playBadgeTone(sortedBadges.length);
+    animateCount(totalEl, runningEP, 420);
+    await new Promise(function (resolve) { setTimeout(resolve, 520); });
+  }
+
   var sup = document.getElementById("supporting");
   sup.textContent = res.supporting.length ? ("Also spotted: " + res.supporting.join(", ")) : "";
 
@@ -3082,6 +3179,14 @@ function showRollDetail(word, player, ep) {
     item.addEventListener("keydown", function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openBadge(); } });
     list.appendChild(item);
   });
+  if (result.layoutBonuses && result.layoutBonuses.length && result.layoutBonusEP) {
+    var lbItem = document.createElement("li");
+    lbItem.className = "badge-item bonus-item rarity-" + tierForEP(result.layoutBonusEP).toLowerCase();
+    lbItem.style.setProperty("--badge-color", TIER_COLORS.Legendary);
+    var lbLabels = result.layoutBonuses.map(function (lb) { return lb.label + " +" + lb.ep; }).join(" · ");
+    lbItem.innerHTML = "<div><span class='badge-name'><span class='badge-icon' aria-hidden='true'>✨</span>Layout Bonus</span><span class='badge-desc'>" + lbLabels + "</span></div><span class='badge-ep'>+" + result.layoutBonusEP + " EP</span>";
+    list.appendChild(lbItem);
+  }
   detail.classList.add("show");
 }
 
