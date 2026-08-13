@@ -1341,7 +1341,7 @@ html.badge-detail-route .badge-detail-page { display:grid; }
       <ul class="badge-list" id="badgeList"></ul>
       <div class="supporting" id="supporting"></div>
       <div class="result-footer">
-        <button class="share-btn" id="shareBtn" type="button">Copy result</button>
+        <button class="share-btn" id="shareBtn" type="button">Share image</button>
       </div>
     </section>
 
@@ -2482,6 +2482,284 @@ function playBadgeTone(index) {
   } catch (e) {}
 }
 
+/* ================= shareable result image ================= */
+function hexToRgba(hex, alpha) {
+  var h = (hex || "#000000").replace("#", "");
+  if (h.length === 3) h = h.split("").map(function (c) { return c + c; }).join("");
+  var num = parseInt(h, 16);
+  var r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+  return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+// Pull the live theme tokens straight from the page's CSS variables so the
+// exported image always matches whatever theme (light/dark) is active,
+// instead of hard-coding a duplicate palette that can drift out of sync.
+function getShareThemeColors() {
+  var cs = getComputedStyle(document.documentElement);
+  function v(name, fallback) {
+    var val = cs.getPropertyValue(name);
+    return val && val.trim() ? val.trim() : fallback;
+  }
+  return {
+    bg: v("--page-bg", "#0a0a12"),
+    card: v("--card-bg", "#13131f"),
+    surface2: v("--surface-2", "#1a1a2c"),
+    border: v("--border", "#262638"),
+    text: v("--text", "#f1f1f8"),
+    text2: v("--text-2", "#a8a8c2"),
+    text3: v("--text-3", "#6f6f8c"),
+    accent: v("--accent", "#7c6bff")
+  };
+}
+
+async function buildShareCanvas(letters, res, rank) {
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch (e) {}
+  }
+
+  var W = 1080, H = 1350;
+  var canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  var ctx = canvas.getContext("2d");
+  var theme = getShareThemeColors();
+  var tierColor = TIER_COLORS[res.tier] || TIER_COLORS.Trash;
+
+  // Base background, echoing the page's own bg.
+  ctx.fillStyle = theme.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Two soft radial glows — tier-colored up top (mirrors .result-card's own
+  // tier glow), accent-colored bottom-right (mirrors the page's .bg-decor).
+  var glow1 = ctx.createRadialGradient(W * 0.5, 40, 20, W * 0.5, 40, 620);
+  glow1.addColorStop(0, hexToRgba(tierColor, 0.38));
+  glow1.addColorStop(1, hexToRgba(tierColor, 0));
+  ctx.fillStyle = glow1;
+  ctx.fillRect(0, 0, W, H);
+
+  var glow2 = ctx.createRadialGradient(W * 0.88, H * 0.92, 20, W * 0.88, H * 0.92, 520);
+  glow2.addColorStop(0, hexToRgba(theme.accent, 0.22));
+  glow2.addColorStop(1, hexToRgba(theme.accent, 0));
+  ctx.fillStyle = glow2;
+  ctx.fillRect(0, 0, W, H);
+
+  // Card panel
+  var pad = 56;
+  roundRectPath(ctx, pad, pad, W - pad * 2, H - pad * 2, 40);
+  ctx.fillStyle = theme.card;
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = hexToRgba(tierColor, 0.45);
+  ctx.stroke();
+
+  var cx = pad + 64;
+  var cw = W - pad * 2 - 128;
+  var y = pad + 78;
+
+  // Wordmark + host
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  ctx.font = "800 30px Inter, sans-serif";
+  ctx.fillStyle = theme.accent;
+  ctx.fillText("SIXROLL", cx, y);
+
+  ctx.textAlign = "right";
+  ctx.font = "600 22px Inter, sans-serif";
+  ctx.fillStyle = theme.text3;
+  ctx.fillText(window.location.host || "sixroll", cx + cw, y);
+  ctx.textAlign = "left";
+
+  y += 72;
+
+  // Tier pill (rarity icon + tier name + optional leaderboard rank)
+  var rarityIcon = getRarityIcon(res.tier);
+  var pillLabel = rarityIcon + "  " + res.tier.toUpperCase() + (rank ? "   ·   #" + rank + " ON THE BOARD" : "");
+  ctx.font = "800 26px Inter, sans-serif";
+  var pillPadX = 26, pillH = 56;
+  var pillW = ctx.measureText(pillLabel).width + pillPadX * 2;
+  roundRectPath(ctx, cx, y, pillW, pillH, pillH / 2);
+  ctx.fillStyle = hexToRgba(tierColor, 0.16);
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = hexToRgba(tierColor, 0.5);
+  ctx.stroke();
+  ctx.fillStyle = tierColor;
+  ctx.textBaseline = "middle";
+  ctx.fillText(pillLabel, cx + pillPadX, y + pillH / 2 + 2);
+  ctx.textBaseline = "alphabetic";
+
+  y += pillH + 54;
+
+  // Letter tiles — highlight whichever positions the best badge landed on,
+  // same as the in-page badge-slot.active treatment.
+  var highlight = pickHighlightBadge(res.badges);
+  var activePositions = (highlight && highlight.positions) || [];
+  var gap = 16;
+  var tileSize = (cw - gap * 5) / 6;
+  var tileY = y;
+  for (var i = 0; i < letters.length; i++) {
+    var tx = cx + i * (tileSize + gap);
+    var active = activePositions.indexOf(i) !== -1;
+    roundRectPath(ctx, tx, tileY, tileSize, tileSize, 20);
+    ctx.fillStyle = active ? hexToRgba(tierColor, 0.16) : theme.surface2;
+    ctx.fill();
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.strokeStyle = active ? tierColor : theme.border;
+    ctx.stroke();
+    ctx.font = "700 " + Math.floor(tileSize * 0.48) + 'px "Space Mono", monospace';
+    ctx.fillStyle = active ? tierColor : theme.text;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(letters[i], tx + tileSize / 2, tileY + tileSize / 2 + 4);
+  }
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  y = tileY + tileSize + 58;
+
+  // Total EP
+  ctx.font = "600 24px Inter, sans-serif";
+  ctx.fillStyle = theme.text3;
+  ctx.fillText("TOTAL EP", cx, y);
+  y += 62;
+  ctx.font = '700 74px "Space Mono", monospace';
+  ctx.fillStyle = tierColor;
+  ctx.fillText(Number(res.totalEP).toLocaleString(), cx, y);
+  y += 40;
+
+  ctx.strokeStyle = theme.border;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, y);
+  ctx.lineTo(cx + cw, y);
+  ctx.stroke();
+  y += 46;
+
+  // Badges earned, highest EP first, capped so the card never overflows.
+  var sortedForCard = res.badges.slice().sort(function (a, b) { return b.ep - a.ep; });
+  var maxRows = 6;
+  var shown = sortedForCard.slice(0, maxRows);
+
+  ctx.font = "700 24px Inter, sans-serif";
+  ctx.fillStyle = theme.text2;
+  ctx.fillText("BADGES EARNED", cx, y);
+  y += 38;
+
+  var rowH = 62;
+  for (var j = 0; j < shown.length; j++) {
+    var b = shown[j];
+    var bColor = RARITY_COLORS[b.rarity] || theme.text3;
+    var rowY = y + j * rowH;
+    var barH = rowH - 16;
+
+    roundRectPath(ctx, cx, rowY, 6, barH, 3);
+    ctx.fillStyle = bColor;
+    ctx.fill();
+
+    var icon = BADGE_ICONS[b.family] || "✨";
+    ctx.font = "30px sans-serif";
+    ctx.fillStyle = theme.text;
+    ctx.fillText(icon, cx + 26, rowY + barH / 2 + 11);
+
+    ctx.font = "600 27px Inter, sans-serif";
+    ctx.fillStyle = theme.text;
+    var name = b.name;
+    var maxNameWidth = cw - 210;
+    while (ctx.measureText(name).width > maxNameWidth && name.length > 3) {
+      name = name.slice(0, -2) + "…";
+    }
+    ctx.fillText(name, cx + 76, rowY + barH / 2 + 9);
+
+    ctx.font = '700 26px "Space Mono", monospace';
+    ctx.fillStyle = bColor;
+    ctx.textAlign = "right";
+    ctx.fillText("+" + b.ep, cx + cw, rowY + barH / 2 + 9);
+    ctx.textAlign = "left";
+  }
+  y += shown.length * rowH;
+
+  if (sortedForCard.length > shown.length) {
+    ctx.font = "600 22px Inter, sans-serif";
+    ctx.fillStyle = theme.text3;
+    var more = sortedForCard.length - shown.length;
+    ctx.fillText("+ " + more + " more badge" + (more === 1 ? "" : "s"), cx, y + 30);
+  }
+
+  // Footer
+  ctx.font = "500 22px Inter, sans-serif";
+  ctx.fillStyle = theme.text3;
+  ctx.fillText("Roll your own six letters at " + (window.location.host || "sixroll"), cx, H - pad - 40);
+
+  return canvas;
+}
+
+async function shareResultImage(letters, res, rank, btn) {
+  var prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Building image…";
+  try {
+    var canvas = await buildShareCanvas(letters, res, rank);
+    var blob = await new Promise(function (resolve) { canvas.toBlob(resolve, "image/png"); });
+    if (!blob) throw new Error("toBlob failed");
+
+    var fileName = "sixroll-" + letters.join("") + "-" + res.tier.toLowerCase() + ".png";
+    var shareText = "🎲 SixRoll " + letters.join("") + " — " + res.tier + " (" + res.totalEP + " EP)";
+    var file = (typeof File !== "undefined") ? new File([blob], fileName, { type: "image/png" }) : null;
+
+    // Prefer the native share sheet (best on mobile), then clipboard-as-image
+    // (best on desktop), and only fall back to a plain download if neither
+    // API is available or permitted.
+    if (file && navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+      try {
+        await navigator.share({ files: [file], title: "SixRoll", text: shareText });
+        showToast("Shared!");
+        return;
+      } catch (shareErr) {
+        if (shareErr && shareErr.name === "AbortError") return; // user cancelled the share sheet
+        // otherwise fall through to the other strategies below
+      }
+    }
+
+    if (navigator.clipboard && typeof window.ClipboardItem !== "undefined") {
+      try {
+        await navigator.clipboard.write([new window.ClipboardItem({ "image/png": blob })]);
+        showToast("Image copied — paste it anywhere");
+        return;
+      } catch (clipErr) {
+        // fall through to download
+      }
+    }
+
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    showToast("Image downloaded");
+  } catch (err) {
+    showToast("Couldn't build the image — try again");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+}
+
 async function renderResult(letters, res, leaderboard) {
   var panel = document.getElementById("result");
   var tierColor = TIER_COLORS[res.tier] || TIER_COLORS.Trash;
@@ -2562,15 +2840,7 @@ async function renderResult(letters, res, leaderboard) {
   else if (res.tier === "Mythic") spawnConfetti([TIER_COLORS.Mythic, TIER_COLORS.Legendary, TIER_COLORS.Epic, "#ffffff"], 38);
 
   document.getElementById("shareBtn").onclick = function () {
-    var lines = ["🎲 SixRoll " + letters.join("") + " — " + res.tier + " (" + res.totalEP + " EP)"];
-    sortedBadges.forEach(function (b) { lines.push("• " + b.name + " +" + b.ep); });
-    var text = lines.join("\\n");
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { showToast("Copied result to clipboard"); })
-        .catch(function () { showToast("Couldn't copy — select and copy manually"); });
-    } else {
-      showToast("Clipboard not available");
-    }
+    shareResultImage(letters, res, rank, this);
   };
 
   // If this roll is in the top 20, expose a "Go to leaderboard" button under the badge list
