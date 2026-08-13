@@ -1765,7 +1765,7 @@ async function initializeAccountOverview(explicitName) {
   }
 
   try {
-    var response = await fetch("/api/player/" + encodeURIComponent(playerName));
+    var response = await fetch("/api/player/" + encodeURIComponent(playerName) + "?_=" + Date.now(), { cache: "no-store" });
     if (!response.ok) throw new Error("Player not found");
     var summary = await response.json();
     renderPlayerOverview(summary, isSelf && signedIn);
@@ -1774,6 +1774,33 @@ async function initializeAccountOverview(explicitName) {
     setAuthStatus("Unable to load player overview.", "error");
   }
 }
+
+
+// Public profile live refresh. The server is authoritative; refresh only while
+// viewing someone else's profile and only while the tab is visible.
+var publicProfileRefreshTimer = null;
+function startPublicProfileRefresh() {
+  if (publicProfileRefreshTimer) {
+    clearInterval(publicProfileRefreshTimer);
+    publicProfileRefreshTimer = null;
+  }
+  if (!window.location.pathname.startsWith("/account/")) return;
+  publicProfileRefreshTimer = setInterval(function () {
+    if (document.hidden) return;
+    if (!window.location.pathname.startsWith("/account/")) return;
+    var target = getAccountPathName();
+    if (!target) return;
+    initializeAccountOverview(target).catch(function () {});
+  }, 10000);
+}
+startPublicProfileRefresh();
+document.addEventListener("visibilitychange", function () {
+  if (!document.hidden && window.location.pathname.startsWith("/account/")) {
+    var target = getAccountPathName();
+    if (target) initializeAccountOverview(target).catch(function () {});
+  }
+});
+window.addEventListener("popstate", startPublicProfileRefresh);
 
 // Profile-page editing mirrors the account controls without rendering the old account panel.
 (function bindProfileControls() {
