@@ -1418,6 +1418,7 @@ html.badge-detail-route .badge-detail-page { display:grid; }
           <button class="admin-btn" id="deleteScoreSubmit" type="button">Delete</button><span id="deleteScoreStatus" style="grid-column:1/-1;min-height:1.2em"></span>
         </div>
         <button class="admin-btn" id="recalcBtn" type="button">Recalculate all scores</button>
+        <button class="admin-btn" id="undoRecalcBtn" type="button">Undo last recalculate</button>
       </div>
       <div class="admin-log" id="adminLog"></div>
     </section>
@@ -3502,6 +3503,29 @@ async function recalcAllScores() {
 }
 
 document.getElementById("recalcBtn").addEventListener("click", recalcAllScores);
+
+async function undoLastRecalc() {
+  var btn = document.getElementById("undoRecalcBtn");
+  btn.disabled = true;
+  adminLog("Restoring leaderboard snapshot from before the last recalculate…");
+  try {
+    var res = await fetch("/api/admin/undo-recalc", { method: "POST" });
+    var data = {};
+    try { data = await res.json(); } catch (_) {}
+    if (!res.ok) throw new Error(data.error || ("Request failed (" + res.status + ")"));
+    adminLog("Restored " + data.restoredCount + " leaderboard entries.");
+    showToast("Leaderboard restored");
+    leaderboardLoaded = false;
+    await loadLeaderboard();
+  } catch (err) {
+    adminLog("Error: " + (err && err.message ? err.message : "restore failed"));
+    showToast("Restore failed");
+  } finally {
+    btn.disabled = false;
+  }
+}
+document.getElementById("undoRecalcBtn").addEventListener("click", undoLastRecalc);
+
 document.getElementById("adminClose").addEventListener("click", function () {
   setAdminPanel(false);
   showToast("Admin mode disabled");
@@ -3537,6 +3561,7 @@ refreshAuthState().then(function () {
 
 const KV_KEY = "rolls";
 const ROLL_INDEX_KEY = "roll_index";
+const ROLL_INDEX_BACKUP_KEY = "roll_index_backup";
 const PROFILE_PREFIX = "profile:";
 const MAX_ROLLS = 500;
 const MAX_PROFILE_RECENT = 20;
@@ -3936,10 +3961,20 @@ export default {
     }
 
     // --- Admin: return every stored roll (not just the top 20) so the client
-    // can recompute each score with the current formula. ---
+    // can recompute each score with the current formula. Sourced primarily from
+    // player profiles (the live, actually-current data), merged with the legacy
+    // "rolls" snapshot so nothing gets dropped if it only ever existed there. ---
     if (url.pathname === "/api/admin/rolls" && request.method === "GET") {
-      const rolls = await getRolls(env);
-      return json(rolls);
+      const [fromProfiles, legacy] = await Promise.all([getAllProfileRolls(env), getRolls(env)]);
+      const seen = new Set();
+      const merged = [];
+      for (const roll of fromProfiles.concat(legacy)) {
+        const sig = roll.word + "|" + roll.name + "|" + roll.ep + "|" + roll.ts;
+        if (seen.has(sig)) continue;
+        seen.add(sig);
+        merged.push(roll);
+      }
+      return json(merged);
     }
 
     // --- Admin: overwrite the leaderboard with a recalculated set of rolls. ---
@@ -3965,6 +4000,13 @@ export default {
       }
       cleaned.sort((a, b) => (Number(b.ep) || 0) - (Number(a.ep) || 0));
       const trimmed = cleaned.slice(0, MAX_ROLLS);
+
+      // Snapshot the leaderboard as it stood right before this overwrite, so a bad
+      // recalc (stale input, formula regression, etc.) can be undone with one click
+      // instead of needing to be reconstructed by hand.
+      const previousIndex = await getRollIndex(env);
+      await env.PLAYERS.put(ROLL_INDEX_BACKUP_KEY, JSON.stringify({ ...previousIndex, backedUpAt: Date.now() }));
+
       await env.PLAYERS.put(KV_KEY, JSON.stringify(trimmed));
       await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({
         count: trimmed.length,
@@ -3972,6 +4014,21 @@ export default {
         leaderboard: trimmed.slice(0, MAX_LEADERBOARD)
       }));
       return json({ ok: true, count: cleaned.length });
+    }
+
+    // --- Admin: undo the most recent recalc, restoring the leaderboard snapshot
+    // taken right before it ran. ---
+    if (url.pathname === "/api/admin/undo-recalc" && request.method === "POST") {
+      const raw = await env.PLAYERS.get(ROLL_INDEX_BACKUP_KEY);
+      if (!raw) return json({ error: "No backup available to restore" }, 404);
+      let backup;
+      try { backup = JSON.parse(raw); } catch { return json({ error: "Backup is corrupt" }, 500); }
+      await env.PLAYERS.put(ROLL_INDEX_KEY, JSON.stringify({
+        count: backup.count,
+        cutoffEp: backup.cutoffEp,
+        leaderboard: backup.leaderboard || []
+      }));
+      return json({ ok: true, restoredCount: (backup.leaderboard || []).length, backedUpAt: backup.backedUpAt || null });
     }
 
     return new Response("Not found", { status: 404 });
@@ -4023,6 +4080,46 @@ async function getRolls(env) {
   } catch {
     return [];
   }
+}
+
+// The legacy "rolls" KV key (KV_KEY) stopped being written to once submissions moved to the
+// per-player profile system -- a normal /api/roll submission only touches PROFILE_PREFIX:* and
+// ROLL_INDEX_KEY now, never KV_KEY. That makes KV_KEY a frozen snapshot from whenever it was
+// last written, so anything treating it as "every roll that ever happened" (like admin recalc)
+// was silently working from stale data -- and admin recalc *overwrites* the live leaderboard
+// with whatever it computes, so a stale read became a destructive write. Player profiles
+// (bestRoll + recentRolls) are the actual source of truth for what each player scored, since
+// normal play keeps those current, so recalc is rebuilt to read from there instead.
+async function getAllProfileRolls(env) {
+  const rolls = [];
+  const seen = new Set();
+  let cursor;
+  let done = false;
+  while (!done) {
+    const page = await env.PLAYERS.list({ prefix: PROFILE_PREFIX, cursor });
+    for (const k of page.keys) {
+      const raw = await env.PLAYERS.get(k.name);
+      if (!raw) continue;
+      let profile;
+      try { profile = JSON.parse(raw); } catch { continue; }
+      const add = (r) => {
+        if (!r || typeof r.word !== "string" || !Number.isFinite(Number(r.ep))) return;
+        const word = r.word.toUpperCase();
+        const name = String(r.name || profile.displayName || profile.username || "Anonymous").slice(0, 20);
+        const ep = Number(r.ep);
+        const ts = Number.isFinite(Number(r.ts)) ? Number(r.ts) : Date.now();
+        const sig = word + "|" + name + "|" + ep + "|" + ts;
+        if (seen.has(sig)) return;
+        seen.add(sig);
+        rolls.push({ word, name, ep, ts });
+      };
+      if (profile.bestRoll) add(profile.bestRoll);
+      (profile.recentRolls || []).forEach(add);
+    }
+    done = !!page.list_complete;
+    cursor = page.cursor;
+  }
+  return rolls;
 }
 
 async function getRollIndex(env) {
