@@ -1776,32 +1776,6 @@ async function initializeAccountOverview(explicitName) {
 }
 
 
-// Public profile live refresh. The server is authoritative; refresh only while
-// viewing someone else's profile and only while the tab is visible.
-var publicProfileRefreshTimer = null;
-function startPublicProfileRefresh() {
-  if (publicProfileRefreshTimer) {
-    clearInterval(publicProfileRefreshTimer);
-    publicProfileRefreshTimer = null;
-  }
-  if (!window.location.pathname.startsWith("/account/")) return;
-  publicProfileRefreshTimer = setInterval(function () {
-    if (document.hidden) return;
-    if (!window.location.pathname.startsWith("/account/")) return;
-    var target = getAccountPathName();
-    if (!target) return;
-    initializeAccountOverview(target).catch(function () {});
-  }, 10000);
-}
-startPublicProfileRefresh();
-document.addEventListener("visibilitychange", function () {
-  if (!document.hidden && window.location.pathname.startsWith("/account/")) {
-    var target = getAccountPathName();
-    if (target) initializeAccountOverview(target).catch(function () {});
-  }
-});
-window.addEventListener("popstate", startPublicProfileRefresh);
-
 // Profile-page editing mirrors the account controls without rendering the old account panel.
 (function bindProfileControls() {
   var editBtn = document.getElementById("editDisplayNameBtn");
