@@ -3355,8 +3355,7 @@ export default {
             ? leaderboard.findIndex((entry) => String(entry.name || "").toLowerCase() === String(r.name || profile.username).toLowerCase() && String(entry.word || "") === String(r.word || "") && Number(entry.ep) === Number(r.ep) && Number(entry.ts) === Number(r.ts)) + 1
             : null
         }))
-      });
-    }
+      }, 200, { "Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache" });    }
 
     if (url.pathname.startsWith("/api/roll/") && request.method === "GET") {
       const word = decodeURIComponent(url.pathname.slice("/api/roll/".length)).toUpperCase();
@@ -3377,17 +3376,20 @@ export default {
       const name = String(body.name || "").trim().slice(0, 20);
       const word = String(body.word || "").trim().toUpperCase().slice(0, 6);
       const ep = Number(body.ep);
-      const email = String(body.email || "").trim().toLowerCase();
+      // Authentication is determined by the server-side session cookie.
+      // Do not reject a legitimate signed-in roll because the browser's
+      // cached/submitted email is stale (this was causing other accounts'
+      // rolls to silently return { skipped: true }).
       const signedInUser = await getSessionUser(request, env);
-      const canSave = !!signedInUser && (!email || email === signedInUser.email);
+      const canSave = !!signedInUser;
       if (!name || !/^[A-Z]{6}$/.test(word) || !Number.isFinite(ep) || ep < 0) {
         return json({ error: "name, six-letter word, and non-negative numeric ep required" }, 400);
       }
       if (!canSave) return json({ ok: false, skipped: true });
 
-      const username = String(signedInUser.username || signedInUser.email || email || name).trim();
+      const username = String(signedInUser.username || signedInUser.email || name).trim();
       const ts = Date.now();
-      const record = { word, name, ep, ts, email: signedInUser.email || email || null, username };
+      const record = { word, name, ep, ts, email: signedInUser.email || null, username };
 
       // Every successful roll is now part of the player's own history.
       // The profile stores aggregates + a bounded recent history, so ordinary
